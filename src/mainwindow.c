@@ -1313,7 +1313,7 @@ static void mainwindow_tags_menu_create(MainWindow *mainwin, gboolean refresh)
 	accel_path = g_strdup_printf("<ClawsTags>/ApplyTags");
 	gtk_menu_item_set_accel_path(GTK_MENU_ITEM(item), accel_path);
 	g_free(accel_path);
-	gtk_accel_map_add_entry("<ClawsTags>/ApplyTags", GDK_KEY_T, GDK_CONTROL_MASK|GDK_SHIFT_MASK);
+	gtk_accel_map_add_entry("<ClawsTags>/ApplyTags", GDK_KEY_T, GDK_CONTROL_MASK|GDK_MOD1_MASK);
 	g_slist_free(orig);
 	gtk_widget_show(menu);
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(label_menuitem), menu);

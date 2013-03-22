@@ -222,8 +222,14 @@ static void textview_toggle_quote		(TextView 	*textview,
 						 ClickableText 	*uri,
 						 gboolean	 expand_only);
 
-static void open_uri_cb				(GtkAction	*action,
-						 TextView	*textview);
+static void open_uri_cb				(GtkAction	*action, TextView	*textview);
+static void open_uri_cbOP			(GtkAction	*action, TextView	*textview);
+static void open_uri_cbEP			(GtkAction	*action, TextView	*textview);
+static void open_uri_cbFF			(GtkAction	*action, TextView	*textview);
+static void open_uri_cbGA			(GtkAction	*action, TextView	*textview);
+static void open_uri_cbKO			(GtkAction	*action, TextView	*textview);
+static void open_uri_cbMO			(GtkAction	*action, TextView	*textview);
+
 static void copy_uri_cb				(GtkAction	*action,
 						 TextView	*textview);
 static void add_uri_to_addrbook_cb 		(GtkAction	*action,
@@ -239,7 +245,14 @@ static void textview_show_tags(TextView *textview);
 static GtkActionEntry textview_link_popup_entries[] = 
 {
 	{"TextviewPopupLink",			NULL, "TextviewPopupLink", NULL, NULL, NULL },
-	{"TextviewPopupLink/Open",		NULL, N_("_Open in web browser"), NULL, NULL, G_CALLBACK(open_uri_cb) },
+	{"TextviewPopupLink/Open",		NULL, N_("Open in web browser"), NULL, NULL, G_CALLBACK(open_uri_cb) },
+	{"TextviewPopupLink/Open",		NULL, N_("Open in web browser"), NULL, NULL, G_CALLBACK(open_uri_cb)   },
+	{"TextviewPopupLink/OpenOP",		NULL, N_("Open in Opera"),       NULL, NULL, G_CALLBACK(open_uri_cbOP) },
+	{"TextviewPopupLink/OpenEP",		NULL, N_("Open in Epiphany"),    NULL, NULL, G_CALLBACK(open_uri_cbEP) },
+	{"TextviewPopupLink/OpenFF",		NULL, N_("Open in Firefox"),     NULL, NULL, G_CALLBACK(open_uri_cbFF) },
+	{"TextviewPopupLink/OpenGA",		NULL, N_("Open in Galeon"),      NULL, NULL, G_CALLBACK(open_uri_cbGA) },
+	{"TextviewPopupLink/OpenKO",		NULL, N_("Open in Konqueror"),   NULL, NULL, G_CALLBACK(open_uri_cbKO) },
+	{"TextviewPopupLink/OpenMO",		NULL, N_("Open in Mozilla"),     NULL, NULL, G_CALLBACK(open_uri_cbMO) },
 	{"TextviewPopupLink/Copy",		NULL, N_("Copy this _link"), NULL, NULL, G_CALLBACK(copy_uri_cb) },
 };
 
@@ -2939,26 +2952,68 @@ static void textview_uri_list_remove_all(GSList *uri_list)
 	g_slist_free(uri_list);
 }
 
-static void open_uri_cb (GtkAction *action, TextView *textview)
+static void open_uri_cbN (GtkAction *action, TextView *textview, int n)
 {
-	ClickableText *uri = g_object_get_data(G_OBJECT(textview->link_popup_menu),
-					   "menu_button");
-	const gchar *raw_url = g_object_get_data(G_OBJECT(textview->link_popup_menu),
-					   "raw_url");
+    ClickableText *uri =
+	g_object_get_data (G_OBJECT (textview->link_popup_menu), "menu_button");
+    const gchar *raw_url =
+	g_object_get_data (G_OBJECT (textview->link_popup_menu), "raw_url");
+    const gchar *browser_cmd =
+	n == 1 ? "opera -newpage '%s'"
+      : n == 2 ? "epiphany --new-tab '%s'"
+      : n == 3 ? "firefox '%s'"
+      : n == 4 ? "galeon --new-tab '%s'"
+      : n == 5 ? "konqueror '%s'"
+      : n == 6 ? "mozilla -remote 'openURL(%s)'"
+	       : prefs_common_get_uri_cmd ();
 
-	if (uri) {
-		if (textview_uri_security_check(textview, uri) == TRUE) 
-			open_uri(uri->uri,
-				 prefs_common_get_uri_cmd());
-		g_object_set_data(G_OBJECT(textview->link_popup_menu), "menu_button",
-				  NULL);
+    if (uri) {
+	if (textview_uri_security_check (textview, uri) == TRUE)
+	    open_uri (uri->uri, browser_cmd);
+	g_object_set_data (G_OBJECT (textview->link_popup_menu),
+	    "menu_button", NULL);
 	}
-	if (raw_url) {
-		open_uri(raw_url, prefs_common_get_uri_cmd());
-		g_object_set_data(G_OBJECT(textview->link_popup_menu), "raw_url",
-				  NULL);
+    if (raw_url) {
+	open_uri (raw_url, browser_cmd);
+	g_object_set_data (G_OBJECT (textview->link_popup_menu),
+	    "raw_url", NULL);
 	}
-}
+    } /* open_uri_cbN */
+
+static void open_uri_cb   (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 0);
+    } /* open_uri_cb */
+
+static void open_uri_cbOP (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 1);
+    } /* open_uri_cbOP */
+
+static void open_uri_cbEP (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 2);
+    } /* open_uri_cbEP */
+
+static void open_uri_cbFF (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 3);
+    } /* open_uri_cbFF */
+
+static void open_uri_cbGA (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 4);
+    } /* open_uri_cbGA */
+
+static void open_uri_cbKO (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 5);
+    } /* open_uri_cbKO */
+
+static void open_uri_cbMO (GtkAction *action, TextView *textview)
+{
+    open_uri_cbN (action, textview, 6);
+    } /* open_uri_cbMO */
 
 static void copy_uri_cb	(GtkAction *action, TextView *textview)
 {
