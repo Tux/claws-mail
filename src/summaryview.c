@@ -981,8 +981,8 @@ void summary_init(SummaryView *summaryview)
 #endif
 
 	/* Init summaryview prefs */
-	summaryview->sort_key = SORT_BY_NONE;
-	summaryview->sort_type = SORT_ASCENDING;
+	summaryview->sort_key  = SORT_BY_DATE;
+	summaryview->sort_type = SORT_DESCENDING;
 
 	/* Init summaryview extra data */
 #ifndef G_OS_WIN32

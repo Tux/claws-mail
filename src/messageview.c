@@ -226,7 +226,7 @@ static GtkActionEntry msgview_entries[] =
 	{"Edit/Copy",			NULL, N_("_Copy"), "<control>C", NULL, G_CALLBACK(copy_cb) },
 	{"Edit/SelectAll",		NULL, N_("_Select all"), "<control>A", NULL, G_CALLBACK(allsel_cb) },
 	{"Edit/---",			NULL, "---", NULL, NULL, NULL },
-	{"Edit/Find",			NULL, N_("_Find"), "<control>F", NULL, G_CALLBACK(search_cb) },
+	{"Edit/Find",			NULL, N_("Find"), NULL, NULL, G_CALLBACK(search_cb) },
 	
 /* View menu */
 	{"View/Goto",			NULL, N_("_Go to") },
@@ -305,9 +305,9 @@ static GtkActionEntry msgview_entries[] =
 	{"Message/ReplyTo/List",	NULL, N_("Mailing _list"), "<control>L", NULL, G_CALLBACK(reply_cb) }, /* COMPOSE_REPLY_TO_LIST */
 	/* {"Message/---",			NULL, "---", NULL, NULL, NULL }, */
 
-	{"Message/Forward",		NULL, N_("_Forward"), "<control><alt>F", NULL, G_CALLBACK(reply_cb) }, /* COMPOSE_FORWARD_INLINE */
+	{"Message/Forward",		NULL, N_("Forward"), "<control><shift>F", NULL, G_CALLBACK(reply_cb) }, /* COMPOSE_FORWARD_INLINE */
 	{"Message/ForwardAtt",		NULL, N_("For_ward as attachment"), NULL, NULL, G_CALLBACK(reply_cb) }, /* COMPOSE_FORWARD_AS_ATTACH */
-	{"Message/Redirect",		NULL, N_("Redirec_t"), NULL, NULL, G_CALLBACK(reply_cb) }, /* COMPOSE_REDIRECT */
+	{"Message/Redirect",		NULL, N_("Redirect"), "<control>F", NULL, G_CALLBACK(reply_cb) }, /* COMPOSE_REDIRECT */
 	{"Message/CheckSignature",		NULL, N_("Check signature"), "C", NULL, G_CALLBACK(check_signature_cb) },
 
 /* Tools menu */	

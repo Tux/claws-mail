@@ -818,6 +818,18 @@ static gint procheader_scan_date_string(const gchar *str,
 			day, month, year, hh, mm, ss);
 	if (result == 6) return 0;
 
+	result = sscanf(str, "%3s %3s %d %2d:%2d:%2d %d",
+			weekday, month, day, hh, mm, ss, year);
+	if (result == 7) return 0;
+
+	result = sscanf(str, "%3s, %d %3s %d %2d:%2d:%2d %2s",
+			weekday, day, month, year, hh, mm, ss, zone);
+	if (result == 7) {
+	    if (*zone == 'P') hh = hh + 12;
+	    *zone = (gchar)0;
+	    return 0;
+	    }
+
 	*ss = 0;
 	result = sscanf(str, "%10s %d %9s %d %2d:%2d %5s",
 			weekday, day, month, year, hh, mm, zone);
