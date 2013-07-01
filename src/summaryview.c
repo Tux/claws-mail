@@ -3381,6 +3381,36 @@ static gchar *summary_complete_address(const gchar *addr)
 	if (addr == NULL || !strchr(addr, '@'))
 		return NULL;
 
+	/* "Some Person via RT" <perlbug-followup@perl.org>
+	 * =>
+	 * RT*Some Person
+	 */
+	if ((res = g_strrstr (addr, " <perlbug-followup@perl.org>"))) {
+	    gint l = res - addr;
+
+	    if (l > 1 && (email_addr = alloca (l + 4))) {
+		email_addr[0] = 'R';
+		email_addr[1] = 'T';
+		email_addr[2] = '*';
+
+		tmp = addr;
+		/* Strip enclosing "s */
+		if (*tmp == '"' && res[-1] == '"') {
+		    l -= 2;
+		    tmp++;
+		    }
+		/* Strip trailing via RT and (via RT) */
+		if (g_strrstr (tmp + l - 7,  " via RT" ) == tmp + l - 7)
+		    l -= 7;
+		if (g_strrstr (tmp + l - 9, " (via RT)") == tmp + l - 9)
+		    l -= 9;
+
+		strncpy (email_addr + 3, tmp, l);
+		email_addr[l + 3] = (gchar)0;
+		return (g_strdup (email_addr));
+		}
+	    }
+
 	Xstrdup_a(email_addr, addr, return NULL);
 	extract_address(email_addr);
 	if (!*email_addr)
