@@ -7435,6 +7435,9 @@ static void summary_sort_by_column_click(SummaryView *summaryview,
 			     summaryview->sort_type == SORT_ASCENDING
 			     ? SORT_DESCENDING : SORT_ASCENDING);
 	else
+	if (sort_key == SORT_BY_DATE)
+		summary_sort(summaryview, sort_key, SORT_DESCENDING);
+	else
 		summary_sort(summaryview, sort_key, summaryview->sort_type);
 
 	node = GTK_CMCTREE_NODE(GTK_CMCLIST(summaryview->ctree)->row_list);
