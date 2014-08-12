@@ -162,6 +162,7 @@ gchar *advsearch_expand_search_string(const gchar *search_string)
 		{ "f",	"from",				1,	TRUE,	TRUE  },
 		{ "F",	"forwarded",			0,	FALSE,	FALSE },
 		{ "h",	"headers_part",			1,	TRUE,	TRUE  },
+		{ "H",	"headers_cont",			1,	TRUE,	TRUE  },
 		{ "ha",	"has_attachments",		0,	FALSE,	FALSE },
 		{ "i",	"header \"Message-ID\"",	1,	TRUE,	TRUE  },
 		{ "I",	"inreplyto",			1,	TRUE,	TRUE  },

@@ -394,6 +394,7 @@ http://www.claws-mail.org/plugins.php
     f        S          messages originating from user S
     F                   forwarded messages
     h        S          messages which contain header S
+    H        S          messages which contain a header containing S
     i        S          messages which contain S in Message-Id header
     I        S          messages which contain S in inreplyto header
     k	     #		messages which are marked with color #

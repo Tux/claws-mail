@@ -1886,7 +1886,7 @@ void textview_set_position(TextView *textview, gint pos)
 	gtkut_text_view_set_position(text, pos);
 }
 
-static gboolean header_is_internal(Header *header)
+gboolean header_is_internal(const gchar *hdr)
 {
 	const gchar *internal_hdrs[] = 
 		{"AF:", "NF:", "PS:", "SRH:", "SFN:", "DSR:", "MID:", 
@@ -1901,7 +1901,7 @@ static gboolean header_is_internal(Header *header)
 	int i;
 	
 	for (i = 0; internal_hdrs[i]; i++) {
-		if (!strcmp(header->name, internal_hdrs[i]))
+		if (!strcmp(hdr, internal_hdrs[i]))
 			return TRUE;
 	}
 	return FALSE;
@@ -1922,7 +1922,7 @@ static GPtrArray *textview_scan_header(TextView *textview, FILE *fp)
 		sorted_headers = g_ptr_array_new();
 		for (i = 0; i < headers->len; i++) {
 			header = g_ptr_array_index(headers, i);
-			if (!header_is_internal(header))
+			if (!header_is_internal(header->name))
 				g_ptr_array_add(sorted_headers, header);
 			else
 				procheader_header_free(header);
@@ -1965,7 +1965,7 @@ static GPtrArray *textview_scan_header(TextView *textview, FILE *fp)
 	if (prefs_common.show_other_header) {
 		for (i = 0; i < headers->len; i++) {
 			header = g_ptr_array_index(headers, i);
-			if (!header_is_internal(header)) {
+			if (!header_is_internal(header->name)) {
 				g_ptr_array_add(sorted_headers, header);
 			} else {
 				procheader_header_free(header);

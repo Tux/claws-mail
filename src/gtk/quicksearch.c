@@ -464,6 +464,7 @@ static gchar *search_descr_strings[] = {
 	"F",	 N_("forwarded messages"),
 	"ha",	 N_("messages which have attachments"),
 	"h S",	 N_("messages which contain header S"),
+	"H S",	 N_("messages which contain a header containing S"),
 	"i S",	 N_("messages which contain S in Message-ID header"),
 	"I S",	 N_("messages which contain S in In-Reply-To header"),
 	"k #",	 N_("messages which are marked with color #"),

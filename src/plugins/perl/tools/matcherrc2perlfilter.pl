@@ -128,6 +128,7 @@ sub convert {
 	      $token eq "inreplyto"     or
 	      $token eq "references"    or
 	      $token eq "headers_part"  or
+	      $token eq "headers_cont"  or
 	      $token eq "body_part"     or
 	      $token eq "message") {
 	    my $match = shift;
