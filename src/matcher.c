@@ -625,24 +625,27 @@ static gboolean matcherprop_header_line_match(MatcherProp *prop, const gchar *hd
 					 const gchar *str, const gboolean both,
 					 const gchar *debug_context)
 {
-	gchar *line = NULL;
 	gboolean res = FALSE;
 
 	if (hdr == NULL || str == NULL)
 		return FALSE;
 
-	/* Exclude private headers. e.g. searching for "h foo" in folder
-	 * x/foo would return *all* mail as SCF and RMID will match
-	 *
-	 * Searching for "h sent" will still return all resent messages
-	 * as "Resent-From: whatever" will match
-	 */
-	if (header_is_internal(hdr))
-		return FALSE;
-
-	line = both ? g_strdup_printf("%s %s", hdr, str) : g_strdup(str);
-	res = matcherprop_string_match(prop, line, debug_context);
-	g_free(line);
+	if (both) {		/* Old behavior: search in al */
+		gchar *line = g_strdup_printf("%s %s", hdr, str);
+		res = matcherprop_string_match(prop, str, debug_context);
+		g_free(line);
+	}
+	else {
+		/* Exclude private headers. e.g. searching for "h foo" in folder
+		 * x/foo would return *all* mail as SCF and RMID will match
+		 *
+		 * Searching for "h sent" would return all resent messages
+		 * as "Resent-From: whatever" will match
+		 */
+		if (header_is_internal(hdr))
+			return FALSE;
+		res = matcherprop_string_match(prop, str, debug_context);
+	}
        
 	return res;
 }
@@ -1324,7 +1327,7 @@ static gboolean matcherprop_match_one_header(MatcherProp *matcher,
 			return FALSE;
 		result = matcherprop_header_line_match(matcher, 
 			       header->name, header->body,
-			       (matcher->criteria != MATCHCRITERIA_HEADERS_CONT),
+			       (matcher->criteria == MATCHCRITERIA_HEADERS_PART),
 			       context_str[CONTEXT_HEADER_LINE]);
 		procheader_header_free(header);
 		return result;
@@ -1336,7 +1339,7 @@ static gboolean matcherprop_match_one_header(MatcherProp *matcher,
 			return FALSE;
 		result = !matcherprop_header_line_match(matcher, 
 			       header->name, header->body,
-			       (matcher->criteria != MATCHCRITERIA_NOT_HEADERS_CONT),
+			       (matcher->criteria == MATCHCRITERIA_NOT_HEADERS_PART),
 			       context_str[CONTEXT_HEADER_LINE]);
 		procheader_header_free(header);
 		return result;
