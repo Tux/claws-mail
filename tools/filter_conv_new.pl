@@ -183,6 +183,8 @@ foreach my $element ($xmlobj->child("filter")->children("rule")) {
 						$new_filter .= "headers_cont ";
 					} elsif ($condition eq "match-to-or-cc") {
 						$new_filter .= "to_or_cc ";
+					} elsif ($condition eq "match-people") {
+						$new_filter .= "people";
 					} elsif ($condition eq "match-body-text") {
 						$new_filter .= "body_part ";
 					} elsif ($condition eq "command-test") {

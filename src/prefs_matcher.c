@@ -189,7 +189,9 @@ enum {
 	CRITERIA_HEADERS_CONT = 42,
 
 	CRITERIA_DATE_AFTER = 43,
-	CRITERIA_DATE_BEFORE = 44
+	CRITERIA_DATE_BEFORE = 44,
+
+	CRITERIA_PEOPLE = 45
 };
 
 enum {
@@ -377,6 +379,7 @@ static void prefs_matcher_models_create(void)
 	COMBOBOX_ADD(store, "To or Cc", CRITERIA_TO_OR_CC);
 	COMBOBOX_ADD(store, "Message-ID", CRITERIA_MESSAGEID);
 	COMBOBOX_ADD(store, "In-Reply-To", CRITERIA_INREPLYTO);
+	COMBOBOX_ADD(store, "People", CRITERIA_PEOPLE);
 	COMBOBOX_ADD(store, "Newsgroups", CRITERIA_NEWSGROUPS);
 	COMBOBOX_ADD(store, "References", CRITERIA_REFERENCES);
 	COMBOBOX_ADD(store, "Sender", CRITERIA_HEADER);
@@ -1152,6 +1155,8 @@ static gint prefs_matcher_get_criteria_from_matching(gint matching_id)
 	case MATCHCRITERIA_NOT_INREPLYTO:
 	case MATCHCRITERIA_INREPLYTO:
 		return CRITERIA_INREPLYTO;
+	case MATCHCRITERIA_PEOPLE:
+		return CRITERIA_PEOPLE;
 	case MATCHCRITERIA_NOT_REFERENCES:
 	case MATCHCRITERIA_REFERENCES:
 		return CRITERIA_REFERENCES;
@@ -1275,6 +1280,8 @@ static gint prefs_matcher_get_matching_from_criteria(gint criteria_id)
 		return MATCHCRITERIA_MESSAGEID;
 	case CRITERIA_INREPLYTO:
 		return MATCHCRITERIA_INREPLYTO;
+	case CRITERIA_PEOPLE:
+		return MATCHCRITERIA_PEOPLE;
 	case CRITERIA_REFERENCES:
 		return MATCHCRITERIA_REFERENCES;
 	case CRITERIA_AGE_GREATER:
@@ -1448,6 +1455,7 @@ static gint prefs_matcher_get_pred(const gint criteria)
 	case CRITERIA_NEWSGROUPS:
 	case CRITERIA_MESSAGEID:
 	case CRITERIA_INREPLYTO:
+	case CRITERIA_PEOPLE:
 	case CRITERIA_REFERENCES:
 	case CRITERIA_HEADER:
 	case CRITERIA_HEADERS_PART:
@@ -1552,6 +1560,7 @@ static MatcherProp *prefs_matcher_dialog_to_matcher(void)
 	case CRITERIA_NEWSGROUPS:
 	case CRITERIA_MESSAGEID:
 	case CRITERIA_INREPLYTO:
+	case CRITERIA_PEOPLE:
 	case CRITERIA_REFERENCES:
 	case CRITERIA_HEADERS_PART:
 	case CRITERIA_HEADERS_CONT:
@@ -2378,6 +2387,7 @@ static void prefs_matcher_set_criteria(const gint criteria)
 	case CRITERIA_NEWSGROUPS:
 	case CRITERIA_MESSAGEID:
 	case CRITERIA_INREPLYTO:
+	case CRITERIA_PEOPLE:
 	case CRITERIA_REFERENCES:
 	case CRITERIA_HEADER:
 		match_criteria = MATCH_HEADER;
@@ -2553,6 +2563,7 @@ static gboolean prefs_matcher_selected(GtkTreeSelection *selector,
 	case MATCHCRITERIA_NEWSGROUPS:
 	case MATCHCRITERIA_MESSAGEID:
 	case MATCHCRITERIA_INREPLYTO:
+	case MATCHCRITERIA_PEOPLE:
 	case MATCHCRITERIA_REFERENCES:
 	case MATCHCRITERIA_HEADERS_PART:
 	case MATCHCRITERIA_HEADERS_CONT:
@@ -2670,6 +2681,7 @@ static gboolean prefs_matcher_selected(GtkTreeSelection *selector,
 	case CRITERIA_NEWSGROUPS:
 	case CRITERIA_MESSAGEID:
 	case CRITERIA_INREPLYTO:
+	case CRITERIA_PEOPLE:
 	case CRITERIA_REFERENCES:
 	case CRITERIA_HEADER:
 	case CRITERIA_HEADERS_PART:
