@@ -126,6 +126,7 @@ sub convert {
 	      $token eq "to_or_cc"      or
 	      $token eq "newsgroups"    or
 	      $token eq "inreplyto"     or
+	      $token eq "people"        or
 	      $token eq "references"    or
 	      $token eq "headers_part"  or
 	      $token eq "headers_cont"  or
