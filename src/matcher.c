@@ -147,6 +147,7 @@ static const MatchParser matchparser_tab[] = {
 	{MATCHCRITERIA_NOT_BODY_PART, "~body_part"},
 	{MATCHCRITERIA_TEST, "test"},
 	{MATCHCRITERIA_NOT_TEST, "~test"},
+	{MATCHCRITERIA_PEOPLE, "people"},
 
 	/* match type */
 	{MATCHTYPE_MATCHCASE, "matchcase"},
@@ -1386,6 +1387,23 @@ static gboolean matcherprop_match_one_header(MatcherProp *matcher,
 			       context_str[CONTEXT_HEADER_LINE]);
 		procheader_header_free(header);
 		return result;
+	case MATCHCRITERIA_PEOPLE:
+		header = procheader_parse_header(buf);
+		if (!header)
+			return FALSE;
+		if (   procheader_headername_equal(header->name, "From")
+		    || procheader_headername_equal(header->name, "Sender")
+		    || procheader_headername_equal(header->name, "To")
+		    || procheader_headername_equal(header->name, "Cc")
+		    || procheader_headername_equal(header->name, "Bcc")
+		    || procheader_headername_equal(header->name, "Reply-To")
+		    || procheader_headername_equal(header->name, "Resent-From")
+		    || procheader_headername_equal(header->name, "Resent-To"))
+			result = matcherprop_string_match(matcher, header->body, context_str[CONTEXT_HEADER_LINE]);
+		else
+			result = FALSE;
+		procheader_header_free(header);
+		return result;
 	case MATCHCRITERIA_FOUND_IN_ADDRESSBOOK:
 	case MATCHCRITERIA_NOT_FOUND_IN_ADDRESSBOOK:
 		{
@@ -1421,12 +1439,12 @@ static gboolean matcherprop_match_one_header(MatcherProp *matcher,
 				/* address header is one of the headers we have to match when checking
 				   for any address header or all address headers? */
 				if (procheader_headername_equal(header->name, "From") ||
-					 procheader_headername_equal(header->name, "To") ||
-					 procheader_headername_equal(header->name, "Cc") ||
-					 procheader_headername_equal(header->name, "Reply-To") ||
-					 procheader_headername_equal(header->name, "Sender") ||
-					 procheader_headername_equal(header->name, "Resent-From") ||
-					 procheader_headername_equal(header->name, "Resent-To"))
+				    procheader_headername_equal(header->name, "To") ||
+				    procheader_headername_equal(header->name, "Cc") ||
+				    procheader_headername_equal(header->name, "Reply-To") ||
+				    procheader_headername_equal(header->name, "Sender") ||
+				    procheader_headername_equal(header->name, "Resent-From") ||
+				    procheader_headername_equal(header->name, "Resent-To"))
 					address_list = address_list_append(address_list, header->body);
 				procheader_header_free(header);
 				if (address_list == NULL)
@@ -1466,6 +1484,7 @@ static gboolean matcherprop_criteria_headers(const MatcherProp *matcher)
 	case MATCHCRITERIA_HEADERS_CONT:
 	case MATCHCRITERIA_NOT_HEADERS_PART:
 	case MATCHCRITERIA_NOT_HEADERS_CONT:
+	case MATCHCRITERIA_PEOPLE:
 	case MATCHCRITERIA_FOUND_IN_ADDRESSBOOK:
 	case MATCHCRITERIA_NOT_FOUND_IN_ADDRESSBOOK:
 		return TRUE;
@@ -1526,7 +1545,7 @@ static gboolean matcherlist_match_headers(MatcherList *matchers, FILE *fp)
 				match = MATCH_ALL;
 
 			} else if (matcher->criteria == MATCHCRITERIA_FOUND_IN_ADDRESSBOOK ||
-			 		   matcher->criteria == MATCHCRITERIA_NOT_FOUND_IN_ADDRESSBOOK) {
+				   matcher->criteria == MATCHCRITERIA_NOT_FOUND_IN_ADDRESSBOOK) {
 				Header *header = NULL;
 
 				/* address header is one of the headers we have to match when checking

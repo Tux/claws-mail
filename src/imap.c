@@ -2237,6 +2237,7 @@ static IMAPSearchKey* search_make_key(MatcherProp* match, gboolean* is_all)
 			result = imap_search_new(IMAP_SEARCH_CRITERIA_HEADER, "References", match->expr, 0);
 			break;
 
+		case MATCHCRITERIA_PEOPLE:	/* extending with Bcc etc still required */
 		case MATCHCRITERIA_TO_OR_CC:
 			result = imap_search_or(
 					imap_search_new(IMAP_SEARCH_CRITERIA_TO, NULL, match->expr, 0),
