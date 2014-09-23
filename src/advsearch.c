@@ -174,6 +174,7 @@ gchar *advsearch_expand_search_string(const gchar *search_string)
 		{ "n",	"newsgroups",			1,	TRUE,	TRUE  },
 		{ "N",	"new",				0,	FALSE,	FALSE },
 		{ "O",	"~new",				0,	FALSE,	FALSE },
+		{ "P",	"people",			1,	TRUE,	TRUE  },
 		{ "r",	"replied",			0,	FALSE,	FALSE },
 		{ "R",	"~unread",			0,	FALSE,	FALSE },
 		{ "s",	"subject",			1,	TRUE,	TRUE  },
