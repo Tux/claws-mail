@@ -498,6 +498,7 @@ static gchar *search_descr_strings[] = {
 	"N",	 N_("new messages"),
 	"O",	 N_("old messages"),
 	"p",	 N_("incomplete messages (not entirely downloaded)"),
+	"P S",   N_("messages involving people matching S"),
 	"r",	 N_("messages which you have replied to"),
 	"R",	 N_("read messages"),
 	"s S",	 N_("messages which contain S in subject"),
