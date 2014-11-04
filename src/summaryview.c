@@ -3594,6 +3594,8 @@ static inline void summary_set_header(SummaryView *summaryview, gchar *text[],
 	if (!should_swap) {
 		text[col_pos[S_COL_FROM]] = from_text;
 	} else {
+		static gchar *to_self = NULL;
+
 		if (prefs_common.use_addr_book) {
 			gchar *tmp = summary_complete_address(to_text);
 			/* need to keep to_text pointing to stack, so heap-allocated
@@ -3606,7 +3608,12 @@ static inline void summary_set_header(SummaryView *summaryview, gchar *text[],
 				to_text = to_text ? to_text : _("(No From)");
 			}
 		}
-		snprintf(tmp2, BUFFSIZE-1, "➜ %s", to_text);
+
+		if (to_self == NULL) { /* first time through */
+		    to_self = prefs_common.to_self && *prefs_common.to_self ?
+			prefs_common.to_self : "➜";
+		}
+		snprintf(tmp2, BUFFSIZE-1, "%s %s", to_self, to_text);
 		tmp2[BUFFSIZE-1]='\0';
 		text[col_pos[S_COL_FROM]] = tmp2;
 	}

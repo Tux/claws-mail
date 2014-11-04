@@ -1165,6 +1165,8 @@ static PrefParam param[] = {
 	 NULL, NULL, NULL},
 	{"enable_swap_from", "FALSE", &prefs_common.swap_from, P_BOOL,
 	 NULL, NULL, NULL},
+	{"to_self", "FALSE", &prefs_common.to_self, P_STRING,
+	 NULL, NULL, NULL},
 	{"use_stripes_everywhere", "TRUE", &prefs_common.use_stripes_everywhere, P_BOOL,
 	 NULL, NULL, NULL},
 	{"use_stripes_in_summaries", "TRUE", &prefs_common.use_stripes_in_summaries, P_BOOL,

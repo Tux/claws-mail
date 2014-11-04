@@ -253,6 +253,7 @@ struct _PrefsCommon
 
 	gboolean show_searchbar;
 	gboolean swap_from;
+	gchar *to_self;
 	gboolean use_addr_book;
 	gchar *date_format;
 	gboolean *msgview_date_format;
