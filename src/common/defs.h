@@ -54,6 +54,7 @@
 #define ACCOUNT_RC		"accountrc"
 #define CUSTOM_HEADER_RC	"customheaderrc"
 #define DISPLAY_HEADER_RC	"dispheaderrc"
+#define QUICK_P_HEADER_RC	"quickpheaderrc"
 #define FOLDERITEM_RC           "folderitemrc"
 #define SCORING_RC              "scoringrc"
 #define FILTERING_RC		"filteringrc"
