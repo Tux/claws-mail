@@ -54,6 +54,7 @@
 #define OAUTH2_RC		"oauth2rc"
 #define CUSTOM_HEADER_RC	"customheaderrc"
 #define DISPLAY_HEADER_RC	"dispheaderrc"
+#define QUICK_P_HEADER_RC	"quickpheaderrc"
 #define FOLDERITEM_RC           "folderitemrc"
 #define FILTERING_RC		"filteringrc"
 #define MATCHER_RC		"matcherrc"
