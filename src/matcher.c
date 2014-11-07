@@ -209,6 +209,7 @@ enum {
 };
 
 static gchar *context_str[N_CONTEXT_STRS];
+static GList *quicksearch_P_headers;
 
 void matcher_init(void)
 {
@@ -1331,6 +1332,45 @@ void matcherlist_free(MatcherList *cond)
 	g_free(cond);
 }
 
+static GList *get_quicksearch_P_headers()
+{
+	GList *hl = quicksearch_P_headers;
+	gchar *rcpath;
+	FILE *fp;
+	gchar buf[PREFSBUFSIZE];
+
+	if (hl != NULL)
+		return hl;
+
+	rcpath = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S,
+			     QUICK_P_HEADER_RC, NULL);
+	if ((fp = g_fopen(rcpath, "rb")) == NULL) {
+		if (ENOENT != errno) FILE_OP_ERROR(rcpath, "fopen");
+		g_free(rcpath);
+
+		hl = g_list_append(hl, "From");
+		hl = g_list_append(hl, "Sender");
+		hl = g_list_append(hl, "To");
+		hl = g_list_append(hl, "Cc");
+		hl = g_list_append(hl, "Bcc");
+		hl = g_list_append(hl, "Reply-To");
+		hl = g_list_append(hl, "Resent-From");
+		hl = g_list_append(hl, "Resent-To");
+		return (quicksearch_P_headers = hl);
+	}
+	g_free(rcpath);
+
+	debug_print("Reading configuration for quicksearch P headers...\n");
+
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
+		g_strdelimit(buf, "\r\n\t #", '\0');
+		if (*buf)
+			hl = g_list_append(hl, g_strdup(buf));
+	}
+	fclose(fp);
+	return (quicksearch_P_headers = hl);
+}
+
 /*!
  *\brief	Check if a header matches a matcher condition
  *
@@ -1388,23 +1428,23 @@ static gboolean matcherprop_match_one_header(MatcherProp *matcher,
 			       context_str[CONTEXT_HEADER_LINE]);
 		procheader_header_free(header);
 		return result;
-	case MATCHCRITERIA_PEOPLE:
+	case MATCHCRITERIA_PEOPLE: {
+		GList *p;
+		gchar *nm;
+
 		header = procheader_parse_header(buf);
 		if (!header)
 			return FALSE;
-		if (   procheader_headername_equal(header->name, "From")
-		    || procheader_headername_equal(header->name, "Sender")
-		    || procheader_headername_equal(header->name, "To")
-		    || procheader_headername_equal(header->name, "Cc")
-		    || procheader_headername_equal(header->name, "Bcc")
-		    || procheader_headername_equal(header->name, "Reply-To")
-		    || procheader_headername_equal(header->name, "Resent-From")
-		    || procheader_headername_equal(header->name, "Resent-To"))
+
+		for (p = get_quicksearch_P_headers(); p != NULL; p = p->next) {
+			if (!procheader_headername_equal(header->name, p->data))
+				continue;
 			result = matcherprop_string_match(matcher, header->body, context_str[CONTEXT_HEADER_LINE]);
-		else
-			result = FALSE;
+			break;
+		}
 		procheader_header_free(header);
 		return result;
+		}
 	case MATCHCRITERIA_FOUND_IN_ADDRESSBOOK:
 	case MATCHCRITERIA_NOT_FOUND_IN_ADDRESSBOOK:
 		{
