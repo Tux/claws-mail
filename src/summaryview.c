@@ -3406,17 +3406,21 @@ static gchar *summary_complete_address(const gchar *addr)
 	if (addr == NULL || !strchr(addr, '@'))
 		return NULL;
 
-	/* "Some Person via RT" <perlbug-followup@perl.org>
-	 * =>
-	 * RT*Some Person
+	/* "Joe Black via RT" <perlbug-followup@perl.org> => RT:Joe Black
+	 * likewise for fiveperl (5P) and perl5-porters (P5P)
 	 */
-	if ((res = g_strrstr (addr, " <perlbug-followup@perl.org>"))) {
+	if ((res = g_strrstr (addr, " <perlbug-followup@perl.org>"))
+	 || (res = g_strrstr (addr, " <perl5-porters@perl.org>"))
+	 || (res = g_strrstr (addr, " <fiveperl@perl.org>"))
+	 ) {
 	    gint l = res - addr;
 
-	    if (l > 1 && (email_addr = alloca (l + 4))) {
-		email_addr[0] = 'R';
-		email_addr[1] = 'T';
-		email_addr[2] = '*';
+	    if (l > 1 && (email_addr = alloca (l + 8))) {
+		int i;
+		char *prefix = res[2] == 'f' ? "5P:"
+		             : res[6] == '5' ? "P5P:" : "RT:";
+		for (i = 0; prefix[i]; i++)
+		    email_addr[i] = prefix[i];
 
 		tmp = addr;
 		/* Strip enclosing "s */
@@ -3424,14 +3428,15 @@ static gchar *summary_complete_address(const gchar *addr)
 		    l -= 2;
 		    tmp++;
 		    }
-		/* Strip trailing via RT and (via RT) */
-		if (g_strrstr (tmp + l - 7,  " via RT" ) == tmp + l - 7)
-		    l -= 7;
-		if (g_strrstr (tmp + l - 9, " (via RT)") == tmp + l - 9)
-		    l -= 9;
 
-		strncpy (email_addr + 3, tmp, l);
-		email_addr[l + 3] = (gchar)0;
+		strncpy (email_addr + strlen (prefix), tmp, l);
+
+		/* Strip trailing via RT and (via RT) */
+		if ((res = g_strrstr (email_addr,  " via ")) && !strchr (res + 5, ' '))
+		    *res = (gchar)0;
+		if ((res = g_strrstr (email_addr, " (via ")) && !strchr (res + 6, ' '))
+		    *res = (gchar)0;
+
 		return (g_strdup (email_addr));
 		}
 	    }
