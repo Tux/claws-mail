@@ -718,7 +718,6 @@ static void textview_add_part(TextView *textview, MimeInfo *mimeinfo)
 	    mimeinfo->type != MIMETYPE_TEXT)) {
 		gtk_text_buffer_insert(buffer, &iter, "\n", 1);
 		TEXTVIEW_INSERT_LINK(buf, "sc://select_attachment", mimeinfo);
-		gtk_text_buffer_insert(buffer, &iter, " \n", -1);
 		if (mimeinfo->type == MIMETYPE_IMAGE  &&
 		    prefs_common.inline_img ) {
 			GdkPixbuf *pixbuf;
