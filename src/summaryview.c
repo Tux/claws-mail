@@ -4821,7 +4821,8 @@ void summary_move_selected_to(SummaryView *summaryview, FolderItem *to_folder)
 		summary_execute(summaryview);
 	} else {
 		GtkCMCTreeNode *node = NULL;
-		if (summaryview->sort_type == SORT_ASCENDING) {
+		node = summary_find_prev_msg(summaryview, sel_last,TRUE);
+		if (!node || prefs_common.next_on_delete == FALSE)
 			node = summary_find_next_msg(summaryview, sel_last,TRUE);
 			if (!node || prefs_common.next_on_delete == FALSE)
 				node = summary_find_prev_msg(summaryview, sel_last,TRUE);
@@ -5230,15 +5231,9 @@ gboolean summary_execute(SummaryView *summaryview)
 		if (!new_selected &&
 		    gtkut_ctree_node_is_selected(ctree, node)) {
 			summary_unselect_all(summaryview);
-			if (summaryview->sort_type == SORT_ASCENDING) {
+			new_selected = summary_find_prev_msg(summaryview, node,TRUE);
+			if (!new_selected || prefs_common.next_on_delete == FALSE)
 				new_selected = summary_find_next_msg(summaryview, node,TRUE);
-				if (!new_selected || prefs_common.next_on_delete == FALSE)
-					new_selected = summary_find_prev_msg(summaryview, node,TRUE);
-			} else {
-				new_selected = summary_find_prev_msg(summaryview, node,TRUE);
-				if (!new_selected || prefs_common.next_on_delete == FALSE)
-					new_selected = summary_find_next_msg(summaryview, node,TRUE);
-			}
 		}
 
 		gtk_sctree_remove_node((GtkSCTree *)ctree, node);
