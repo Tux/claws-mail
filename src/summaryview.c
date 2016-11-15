@@ -2302,11 +2302,6 @@ void summary_select_node(SummaryView *summaryview, GtkCMCTreeNode *node,
 {
 	GtkCMCTree *ctree = GTK_CMCTREE(summaryview->ctree);
 
-	/* If msgview is hidden, we never want to automatically display
-	 * a selected message, since that would unhide the msgview. */
-	if (!messageview_is_visible(summaryview->messageview))
-		display_msg = FALSE;
-
 	if (summary_is_locked(summaryview)
 	&& !GTK_SCTREE(ctree)->selecting_range
 	&& summaryview->messageview->mimeview
