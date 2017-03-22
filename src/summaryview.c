@@ -3393,7 +3393,7 @@ static void summary_set_ctree_from_list(SummaryView *summaryview,
 	END_TIMING();
 }
 
-static gchar *summary_complete_address(const gchar *addr)
+static gchar *summary_complete_address(gchar *addr)
 {
 	gint count;
 	gchar *res, *tmp, *email_addr;
@@ -4817,7 +4817,7 @@ void summary_move_selected_to(SummaryView *summaryview, FolderItem *to_folder)
 	} else {
 		GtkCMCTreeNode *node = NULL;
 		node = summary_find_prev_msg(summaryview, sel_last,TRUE);
-		if (!node || prefs_common.next_on_delete == FALSE)
+		if (!node || prefs_common.next_on_delete == FALSE) {
 			node = summary_find_next_msg(summaryview, sel_last,TRUE);
 			if (!node || prefs_common.next_on_delete == FALSE)
 				node = summary_find_prev_msg(summaryview, sel_last,TRUE);
