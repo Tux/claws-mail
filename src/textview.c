@@ -245,7 +245,6 @@ static void textview_show_tags(TextView *textview);
 static GtkActionEntry textview_link_popup_entries[] = 
 {
 	{"TextviewPopupLink",			NULL, "TextviewPopupLink", NULL, NULL, NULL },
-	{"TextviewPopupLink/Open",		NULL, N_("Open in web browser"), NULL, NULL, G_CALLBACK(open_uri_cb) },
 	{"TextviewPopupLink/Open",		NULL, N_("Open in web browser"), NULL, NULL, G_CALLBACK(open_uri_cb)   },
 	{"TextviewPopupLink/OpenOP",		NULL, N_("Open in Opera"),       NULL, NULL, G_CALLBACK(open_uri_cbOP) },
 	{"TextviewPopupLink/OpenEP",		NULL, N_("Open in Epiphany"),    NULL, NULL, G_CALLBACK(open_uri_cbEP) },
