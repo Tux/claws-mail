@@ -3587,7 +3587,7 @@ static inline void summary_set_header(SummaryView *summaryview, gchar *text[],
 		    to_self = prefs_common.to_self && *prefs_common.to_self ?
 			prefs_common.to_self : "➜";
 		}
-		snprintf(tmp2, BUFFSIZE-1, "%s %s", to_self, to_text);
+		snprintf(tmp2, BUFFSIZE+4, "%s %s", to_self, to_text);
 		tmp2[BUFFSIZE-1]='\0';
 		text[col_pos[S_COL_FROM]] = tmp2;
 	}
