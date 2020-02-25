@@ -4460,7 +4460,7 @@ static gboolean compose_beautify_paragraph(Compose *compose, GtkTextIter *par_it
 	GtkTextIter iter, break_pos, end_of_line;
 	gchar *quote_str = NULL;
 	gint quote_len;
-	gboolean wrap_quote = force || prefs_common.linewrap_quote;
+	gboolean wrap_quote;
 	gboolean prev_autowrap = compose->autowrap;
 	gint startq_offset = -1, noq_offset = -1;
 	gint uri_start = -1, uri_stop = -1;
@@ -4477,8 +4477,13 @@ static gboolean compose_beautify_paragraph(Compose *compose, GtkTextIter *par_it
 	gboolean item_continuation = FALSE;
 
 	if (force) {
+		wrap_quote = force;
 		modified = TRUE;
 	}
+	else {
+		wrap_quote = compose->autowrap ? prefs_common.linewrap_quote : FALSE;
+	}
+
 	if (compose->draft_timeout_tag == COMPOSE_DRAFT_TIMEOUT_FORBIDDEN) {
 		modified = TRUE;
 	}
