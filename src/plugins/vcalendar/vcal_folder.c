@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2015 Colin Leroy <colin@colino.net> and
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 Colin Leroy <colin@colino.net> and
  * the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -68,8 +68,6 @@
 
 #include <gtk/gtk.h>
 #include <dirent.h>
-
-#define VCAL_FOLDERITEM(item) ((VCalFolderItem *) item)
 
 #ifdef USE_PTHREAD
 #include <pthread.h>
@@ -1170,7 +1168,7 @@ static void vcal_set_mtime(Folder *folder, FolderItem *item)
 	}
 
 	item->mtime = s.st_mtime;
-	debug_print("VCAL: forced mtime of %s to %"G_GSIZE_FORMAT"\n",
+	debug_print("VCAL: forced mtime of %s to %"CM_TIME_FORMAT"\n",
 			item->name?item->name:"(null)", item->mtime);
 	g_free(path);
 }
@@ -1296,7 +1294,8 @@ void vcal_folder_gtk_done(void)
 		if (!file)			
 			continue;
 		debug_print("removing %s\n", file);
-		g_unlink(file);
+		if (g_unlink(file) < 0)
+                        FILE_OP_ERROR(file, "g_unlink");
 		g_free(file);
 	}
 	g_slist_free(created_files);
@@ -1745,7 +1744,7 @@ gboolean vcal_curl_put(gchar *url, FILE *fp, gint filesize, const gchar *user, c
 
 	curl_easy_getinfo(curl_ctx, CURLINFO_RESPONSE_CODE, &response_code);
 	if (response_code < 200 || response_code >= 300) {
-		g_warning("Can't export calendar, got code %ld", response_code);
+		g_warning("can't export calendar, got code %ld", response_code);
 		res = FALSE;
 	}
 	curl_easy_cleanup(curl_ctx);
@@ -1788,19 +1787,10 @@ static gchar *feed_get_title(const gchar *str)
 	gchar *title = NULL;
 	if (strstr(str, "X-WR-CALNAME:")) {
 		title = g_strdup(strstr(str, "X-WR-CALNAME:")+strlen("X-WR-CALNAME:"));
-		if (strstr(title, "\n"))
-			*(strstr(title, "\n")) = '\0';
-		if (strstr(title, "\r"))
-			*(strstr(title, "\r")) = '\0';		
 	} else if (strstr(str, "X-WR-CALDESC:")) {
 		title = g_strdup(strstr(str, "X-WR-CALDESC:")+strlen("X-WR-CALDESC:"));
-		if (strstr(title, "\n"))
-			*(strstr(title, "\n")) = '\0';
-		if (strstr(title, "\r"))
-			*(strstr(title, "\r")) = '\0';		
 	}
-	
-	return title;
+	return strcrlftrunc(title);
 }
 
 static void update_subscription_finish(const gchar *uri, gchar *feed, gboolean verbose, gchar *error)
@@ -1957,8 +1947,45 @@ static void subscribe_cal_cb(GtkAction *action, gpointer data)
 {
 	gchar *uri = NULL;
 	gchar *tmp = NULL;
+	gchar *clip_text = NULL, *str = NULL;
 
-	tmp = input_dialog(_("Subscribe to Webcal"), _("Enter the Webcal URL:"), NULL);
+    clip_text = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+
+    if (clip_text) {
+        str = clip_text;
+#if GLIB_CHECK_VERSION(2,66,0)
+        GError *error = NULL;
+        GUri *uri = NULL;
+
+        /* skip any leading white-space */
+        while (str && *str && g_ascii_isspace(*str))
+            str++;
+        uri = g_uri_parse(str, G_URI_FLAGS_PARSE_RELAXED, &error);
+        if (error) {
+            g_warning("could not parse clipboard text for URI: '%s'", error->message);
+            g_error_free(error);
+        }
+        if (uri) {
+            gchar* newstr = g_uri_to_string(uri);
+
+            debug_print("URI: '%s' -> '%s'\n", str, newstr ? newstr : "N/A");
+            if (newstr)
+                g_free(newstr);
+            g_uri_unref(uri);
+        } else {
+#else
+        if (!is_uri_string(str)) {
+#endif
+            /* if no URL, ignore clipboard text */
+            str = NULL;
+        }
+    }
+
+	tmp = input_dialog(_("Subscribe to Webcal"), _("Enter the Webcal URL:"), str ? str : "");
+
+	if (clip_text)
+		g_free(clip_text);
+
 	if (tmp == NULL)
 		return;
 	
@@ -2000,7 +2027,8 @@ static void unsubscribe_cal_cb(GtkAction *action, gpointer data)
 	message = g_strdup_printf
 		(_("Do you really want to unsubscribe?"));
 	avalue = alertpanel_full(_("Delete subscription"), message,
-		 		 GTK_STOCK_CANCEL, GTK_STOCK_DELETE, NULL, ALERTFOCUS_FIRST, 
+		 		 NULL, _("_Cancel"), "edit-delete", _("_Delete"),
+				 NULL, NULL, ALERTFOCUS_FIRST,
 				 FALSE, NULL, ALERT_WARNING);
 	g_free(message);
 	if (avalue != G_ALERTALTERNATE) return;
@@ -2491,8 +2519,10 @@ gchar* vcal_add_event(const gchar *vevent)
 	VCalEvent *event = vcal_get_event_from_ical(vevent, NULL);
 	gchar *retVal = NULL;
 	Folder *folder = folder_find_from_name (PLUGIN_NAME, vcal_folder_get_class());
-	if (!folder)
+	if (!folder) {
+		vcal_manager_free_event(event);
 		return NULL;
+	}
 
 	if (event) {
 		if (vcal_event_exists(event->uid)) {

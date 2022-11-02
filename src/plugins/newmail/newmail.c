@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2005-2015 H.Merijn Brand and the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
+
 #include <errno.h>
 
 #include <glib.h>
@@ -30,12 +32,10 @@
 
 #include <inttypes.h>
 
-#include "plugin.h"
 #include "file-utils.h"
 
 #define LOG_NAME	"NewLog"
 #define DEFAULT_DIR	"Mail"
-#define BUFSIZE		2048
 
 static gulong hook_id = HOOK_NONE;
 

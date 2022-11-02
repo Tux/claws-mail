@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2014 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,10 +29,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <sys/stat.h>
-
-#ifdef G_OS_WIN32
-#  include <w32lib.h>
-#endif
 
 #include "procheader.h"
 #include "procmsg.h"
@@ -1064,7 +1060,7 @@ gboolean procheader_date_parse_to_tm(const gchar *src, struct tm *t, char *zone)
 
 	if (procheader_scan_date_string(src, weekday, &day, month, &year,
 					&hh, &mm, &ss, zone) < 0) {
-		g_warning("Invalid date: %s", src);
+		g_warning("invalid date: %s", src);
 		return FALSE;
 	}
 
@@ -1080,7 +1076,7 @@ gboolean procheader_date_parse_to_tm(const gchar *src, struct tm *t, char *zone)
 	if ((p = strstr(monthstr, month)) != NULL)
 		dmonth = (gint)(p - monthstr) / 3 + 1;
 	else {
-		g_warning("Invalid month: %s", month);
+		g_warning("invalid month: %s", month);
 		dmonth = G_DATE_BAD_MONTH;
 	}
 
@@ -1130,7 +1126,13 @@ time_t procheader_date_parse(gchar *dest, const gchar *src, gint len)
 	GTimeZone *tz;
 	GDateTime *dt, *dt2;
 
+#if GLIB_CHECK_VERSION(2,68,0)
+	tz = g_time_zone_new_identifier(zone);
+	if (tz == NULL)
+		tz = g_time_zone_new_utc();
+#else
 	tz = g_time_zone_new(zone); // can't return NULL no need to check for it
+#endif
 	dt = g_date_time_new(tz, 1, 1, 1, 0, 0, 0);
 	g_time_zone_unref(tz);
 	dt2 = g_date_time_add_full(dt, year-1, dmonth-1, day-1, hh, mm, ss);
@@ -1166,9 +1168,9 @@ time_t procheader_date_parse(gchar *dest, const gchar *src, gint len)
 	if (tz_offset != -1)
 		timer += tzoffset_sec(&timer) - tz_offset;
 
+#endif
 	if (dest)
 		procheader_date_get_localtime(dest, len, timer);
-#endif
 
 	return timer;
 }

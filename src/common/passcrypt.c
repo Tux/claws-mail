@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,7 @@
  * 
  */
 
-#if !defined (__FreeBSD__)
-#define _XOPEN_SOURCE 600
-#else
-#define _XOPEN_SOURCE
-#endif
+#include "config.h"
 
 #include <sys/types.h>
 #include <stdio.h>

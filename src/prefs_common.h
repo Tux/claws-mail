@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2021 the Claws Mail team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #define __PREFS_COMMON_H__
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
 #include "claws-features.h"
 #endif
 
@@ -240,7 +239,7 @@ struct _PrefsCommon
 	ColorlabelPrefs custom_colorlabel[COLORLABELS];
 
 	/* program colors */
-	gulong color[COL_LAST_COLOR_INDEX];
+	GdkRGBA color[COL_LAST_COLOR_INDEX];
 
 	/* image viewer */
 	gboolean display_img;
@@ -263,6 +262,7 @@ struct _PrefsCommon
 	gint stripes_color_offset;
 	gboolean enable_hscrollbar;
 	gboolean bold_unread;
+	gboolean bold_marked;
 	gboolean next_on_delete;
 	gboolean thread_by_subject;
 	gint thread_by_subject_max_age; /*!< Max. age of a thread which was threaded
@@ -279,7 +279,6 @@ struct _PrefsCommon
 	gboolean goto_last_folder_on_startup;
 
 	ToolbarStyle toolbar_style;
-	gboolean toolbar_detachable;
 	gboolean show_statusbar;
 	gboolean show_col_headers;
 
@@ -421,6 +420,7 @@ struct _PrefsCommon
 #endif
 	int hover_timeout; /* msecs mouse hover timeout */
 	gboolean ask_mark_all_read;
+	gboolean run_processingrules_before_mark_all;
 	gboolean ask_override_colorlabel;
 	gboolean ask_apply_per_account_filtering_rules;
 	gint apply_per_account_filtering_rules;
@@ -459,7 +459,6 @@ struct _PrefsCommon
 
 	gint io_timeout_secs;
 
-	gboolean gtk_can_change_accels;
 	gboolean gtk_enable_accels;
 	
 	/* Memory cache*/
@@ -539,7 +538,7 @@ struct _PrefsCommon
 	gint news_subscribe_width;
 	gint news_subscribe_height;
 
-    gint imap_scan_tree_recurs_limit;
+	gint imap_scan_tree_recurs_limit;
 	gint warn_dnd;
 	gint broken_are_utf8;
 	gint skip_ssl_cert_check;
@@ -549,7 +548,9 @@ struct _PrefsCommon
 	gint hide_quotes;
 	gboolean unsafe_ssl_certs;
 	gboolean real_time_sync;
-	
+	gboolean show_save_all_success;
+	gboolean show_save_all_failure;
+
 	gchar *print_paper_type;
 	gint print_paper_orientation;
 	gint print_margin_top;
@@ -579,15 +580,18 @@ struct _PrefsCommon
 	guint enable_avatars;
 
 #ifndef PASSWORD_CRYPTO_OLD
-	gboolean use_master_passphrase;
-	gchar *master_passphrase;
-	gchar *master_passphrase_salt;
-	guint master_passphrase_pbkdf2_rounds;
+	gboolean use_primary_passphrase;
+	gchar *primary_passphrase;
+	gchar *primary_passphrase_salt;
+	guint primary_passphrase_pbkdf2_rounds;
 #endif
 
 	/* Proxy */
 	gboolean use_proxy;
 	ProxyInfo proxy_info;
+
+    /* Quicksearch */
+    guint qs_press_timeout;
 };
 
 extern PrefsCommon prefs_common;

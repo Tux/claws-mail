@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2002-2014 by the Claws Mail Team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
@@ -43,7 +43,6 @@
 #include "codeconv.h"
 #include "quoted-printable.h"
 #include "claws.h"
-#include <ctype.h>
 #include "prefs_common.h"
 #include "log.h"
 #include "tags.h"
@@ -952,11 +951,11 @@ static gboolean matcherprop_match(MatcherProp *prop,
 				&& prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
 			if (ret) {
 				log_print(LOG_DEBUG_FILTERING,
-						"message date [ %"G_GSIZE_FORMAT" ] is after [ %d ]\n",
+						"message date [ %" CM_TIME_FORMAT " ] is after [ %d ]\n",
 						info->date_t, prop->value);
 			} else {
 				log_print(LOG_DEBUG_FILTERING,
-						"message date [ %ld ] is not after [ %d ]\n",
+						"message date [ %" CM_TIME_FORMAT " ] is not after [ %d ]\n",
 						info->date_t, prop->value);
 			}
 		}
@@ -1000,11 +999,11 @@ static gboolean matcherprop_match(MatcherProp *prop,
 				&& prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
 			if (ret) {
 				log_print(LOG_DEBUG_FILTERING,
-						"message date [ %ld ] is before [ %d ]\n",
+						"message date [ %" CM_TIME_FORMAT " ] is before [ %d ]\n",
 						info->date_t, prop->value);
 			} else {
 				log_print(LOG_DEBUG_FILTERING,
-						"message date [ %ld ] is not before [ %d ]\n",
+						"message date [ %" CM_TIME_FORMAT " ] is not before [ %d ]\n",
 						info->date_t, prop->value);
 			}
 		}
@@ -2432,11 +2431,13 @@ static int prefs_filtering_write(FILE *fp, GSList *prefs_filtering)
 		if (prop->enabled) {
 			if (claws_fputs("enabled ", fp) == EOF) {
 				FILE_OP_ERROR("filtering config", "claws_fputs");
+				g_free(filtering_str);
 				return -1;
 			}
 		} else {
 			if (claws_fputs("disabled ", fp) == EOF) {
 				FILE_OP_ERROR("filtering config", "claws_fputs");
+				g_free(filtering_str);
 				return -1;
 			}
 		}
@@ -2476,6 +2477,7 @@ static int prefs_filtering_write(FILE *fp, GSList *prefs_filtering)
 			tmp = g_strdup_printf("account %d ", prop->account_id);
 			if (claws_fputs(tmp, fp) == EOF) {
 				FILE_OP_ERROR("filtering config", "claws_fputs");
+				g_free(filtering_str);
 				g_free(tmp);
 				return -1;
 			}

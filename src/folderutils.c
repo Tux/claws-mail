@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2004-2012 Hiroyuki Yamamoto & The Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  * 
  */
+
+#include "config.h"
 
 #include <glib.h>
 
@@ -176,6 +178,8 @@ static gboolean folderutils_mark_all_read_node_func(GNode *node, gpointer data)
 {
 	if (node) {
 		FolderItem *sub_item = (FolderItem *) node->data;
+		if (prefs_common.run_processingrules_before_mark_all)
+			folderview_run_processing(sub_item);
 		folderutils_mark_all_read(sub_item, (gboolean) GPOINTER_TO_INT(data));
 	}
 	return(FALSE);

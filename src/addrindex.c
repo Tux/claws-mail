@@ -1,6 +1,6 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2001-2012 Match Grun and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2001-2022 the Claws Mail team and Match Grun
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1833,7 +1833,8 @@ gint addrindex_save_data( AddressIndex *addrIndex ) {
 						if( abf->retVal != LDAPRC_SUCCESS ) {
 							alertpanel( _("Address(es) update"),
 								_("Update failed. Changes not written to Directory."),
-								GTK_STOCK_CLOSE, NULL, NULL, ALERTFOCUS_FIRST );
+								"window-close", _("_Close"), NULL, NULL,
+								NULL, NULL, ALERTFOCUS_FIRST );
 						}
 						else {
 							abf->retVal = MGU_SUCCESS;
@@ -2011,7 +2012,7 @@ static void addrindex_add_obj( XMLFile *file, AddressCvtNode *node ) {
 			node->list = g_list_append( node->list, newNode );
 		}
 		else {
-			g_warning("Invalid tag");
+			g_warning("invalid tag");
 		}
 	}
 }
@@ -3178,7 +3179,7 @@ gchar *addrindex_get_picture_file(const gchar *emailaddr)
 			/* Get all persons */
 			listP = addrindex_ds_get_all_persons( ds );
 			nodeP = listP;
-			while( nodeP ) {
+			while( nodeP && !found) {
 				GList *nodeM;
 				ItemPerson *person = nodeP->data;
 				nodeM = person->listEMail;

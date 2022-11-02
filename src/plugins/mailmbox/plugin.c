@@ -31,7 +31,6 @@
 #include "mailmbox_folder.h"
 #include "common/version.h"
 #include "plugin_gtk.h"
-#include "plugin.h"
 #include "main.h"
 
 gint plugin_init(gchar **error)
@@ -65,7 +64,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)

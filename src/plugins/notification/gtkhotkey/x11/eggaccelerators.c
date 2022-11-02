@@ -18,6 +18,8 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#include "config.h"
+
 #include "eggaccelerators.h"
 
 #include <string.h>
@@ -36,8 +38,6 @@ enum
   EGG_MODMAP_ENTRY_MOD5    = 7,
   EGG_MODMAP_ENTRY_LAST    = 8
 };
-
-#define MODMAP_ENTRY_TO_MODIFIER(x) (1 << (x))
 
 typedef struct
 {
@@ -206,7 +206,7 @@ egg_accelerator_parse_virtual (const gchar            *accelerator,
                                EggVirtualModifierType *accelerator_mods)
 {
   guint keyval;
-  GdkModifierType mods;
+  EggVirtualModifierType mods;
   gint len;
   gboolean bad_keyval;
   
@@ -494,7 +494,7 @@ egg_keymap_virtualize_modifiers (GdkKeymap              *keymap,
                                  GdkModifierType         concrete_mods,
                                  EggVirtualModifierType *virtual_mods)
 {
-  GdkModifierType virtual;
+  EggVirtualModifierType virtual;
   int i;
   const EggModmap *modmap;
   

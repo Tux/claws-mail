@@ -1,7 +1,13 @@
-# Copyright 1999-2018 the Claws Mail team.
+# Copyright 1999-2021 the Claws Mail team.
 # This file is part of Claws Mail package, and distributed under the
 # terms of the General Public License version 3 (or later).
 # See COPYING file for license details.
+
+if OS_WIN32
+lh_cppflags = -DLITEHTML_UTF8
+else
+lh_cppflags =
+endif
 
 if BUILD_LITEHTML_VIEWER_PLUGIN
 noinst_LTLIBRARIES = liblitehtml.la
@@ -30,6 +36,7 @@ liblitehtml_la_SOURCES = \
 	element.cpp element.h \
 	el_font.cpp el_font.h \
 	el_image.cpp el_image.h \
+	el_li.cpp el_li.h \
 	el_link.cpp el_link.h \
 	el_para.cpp el_para.h \
 	el_script.cpp el_script.h \
@@ -45,6 +52,7 @@ liblitehtml_la_SOURCES = \
 	iterators.cpp iterators.h \
 	litehtml.h \
 	media_query.cpp media_query.h \
+	num_cvt.cpp num_cvt.h \
 	os_types.h \
 	style.cpp style.h \
 	stylesheet.cpp stylesheet.h \
@@ -58,7 +66,7 @@ liblitehtml_la_LDFLAGS = \
         $(LIBGUMBO_LIBS)
 
 liblitehtml_la_CPPFLAGS = \
-        $(def_win32) \
+        $(lh_cppflags) \
         $(LIBGUMBO_CFLAGS)
 
 EXTRA_DIST = \

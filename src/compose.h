@@ -1,6 +1,6 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2012 Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -244,7 +244,7 @@ struct _Compose
 	GtkTextTag *uri_tag;
 
 	gboolean automatic_break;
-	GMutex *mutex;
+	GMutex mutex;
 	gint close_timeout_tag;
 	gchar *orig_charset;
 	gint set_cursor_pos;

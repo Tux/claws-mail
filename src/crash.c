@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2002-2015 by the Claws Mail Team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2002-2019 by the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,9 +71,9 @@ static void		 crash_create_bug_report	(GtkButton *, const gchar *);
 static void		 crash_debug			(unsigned long crash_pid, 
 							 gchar   *exe_image,
 							 GString *debug_output);
-static const gchar	*get_compiled_in_features	(void);
-static const gchar	*get_lib_version		(void);
-static const gchar	*get_operating_system		(void);
+static gchar		*get_compiled_in_features   (void);
+static gchar		*get_lib_version        (void);
+static gchar		*get_operating_system       (void);
 static gboolean		 is_crash_dialog_allowed	(void);
 static void		 crash_handler			(int sig);
 static void		 crash_cleanup_exit		(void);
@@ -180,6 +180,9 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 	gchar	  *crash_report;
 	GtkTextBuffer *buffer;
 	GtkTextIter iter;
+	gchar *features = get_compiled_in_features();
+	gchar *os = get_operating_system();
+	gchar *lversion = get_lib_version();    
 
 	window1 = gtkut_window_new(GTK_WINDOW_TOPLEVEL, "crash");
 	gtk_container_set_border_width(GTK_CONTAINER(window1), 5);
@@ -190,11 +193,11 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 	gtk_window_set_default_size(GTK_WINDOW(window1), 460, 272);
 
 
-	vbox1 = gtk_vbox_new(FALSE, 2);
+	vbox1 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
 	gtk_widget_show(vbox1);
 	gtk_container_add(GTK_CONTAINER(window1), vbox1);
 
-	hbox1 = gtk_hbox_new(FALSE, 4);
+	hbox1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
 	gtk_widget_show(hbox1);
 	gtk_box_pack_start(GTK_BOX(vbox1), hbox1, FALSE, TRUE, 0);
 	gtk_container_set_border_width(GTK_CONTAINER(hbox1), 4);
@@ -203,7 +206,7 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 	    (g_strdup_printf(_("%s.\nPlease file a bug report and include the information below."), text));
 	gtk_widget_show(label1);
 	gtk_box_pack_start(GTK_BOX(hbox1), label1, TRUE, TRUE, 0);
-	gtk_misc_set_alignment(GTK_MISC(label1), 7.45058e-09, 0.5);
+	gtk_label_set_xalign(GTK_LABEL(label1), 0.0);
 
 	frame1 = gtk_frame_new(_("Debug log"));
 	gtk_widget_show(frame1);
@@ -220,10 +223,10 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text1), FALSE);
 	gtk_widget_show(text1);
 	gtk_container_add(GTK_CONTAINER(scrolledwindow1), text1);
-	
+
 	crash_report = g_strdup_printf(
 		"Claws Mail version %s\n"
-		"GTK+ version %d.%d.%d / GLib %d.%d.%d\n"
+		"GTK version %d.%d.%d / GLib %d.%d.%d\n"
 		"Locale: %s (charset: %s)\n"
 		"Features:%s\n"
 		"Operating system: %s\n"
@@ -232,20 +235,20 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 		gtk_major_version, gtk_minor_version, gtk_micro_version,
 		glib_major_version, glib_minor_version, glib_micro_version,
 		conv_get_current_locale(), conv_get_locale_charset_str(),
-		get_compiled_in_features(),
-		get_operating_system(),
-		get_lib_version(),
-		debug_output);
+		features, os, lversion, debug_output);
+	g_free(features);
+	g_free(os);
+	g_free(lversion);
 
 	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(text1));
 	gtk_text_buffer_get_start_iter(buffer, &iter);
 	gtk_text_buffer_insert(buffer, &iter, crash_report, -1);
 
-	hbuttonbox3 = gtk_hbutton_box_new();
+	hbuttonbox3 = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_widget_show(hbuttonbox3);
 	gtk_box_pack_start(GTK_BOX(vbox1), hbuttonbox3, FALSE, FALSE, 0);
 
-	hbuttonbox4 = gtk_hbutton_box_new();
+	hbuttonbox4 = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
 	gtk_widget_show(hbuttonbox4);
 	gtk_box_pack_start(GTK_BOX(vbox1), hbuttonbox4, FALSE, FALSE, 0);
 
@@ -409,7 +412,7 @@ static void crash_debug(unsigned long crash_pid,
 /*!
  *\brief	features
  */
-static const gchar *get_compiled_in_features(void)
+static gchar *get_compiled_in_features(void)
 {
 	return g_strdup_printf("%s",
 #if INET6
@@ -447,7 +450,7 @@ static const gchar *get_compiled_in_features(void)
 /*!
  *\brief	library version
  */
-static const gchar *get_lib_version(void)
+static gchar *get_lib_version(void)
 {
 #if defined(__UCLIBC__)
 	return g_strdup_printf("uClibc %i.%i.%i", __UCLIBC_MAJOR__, __UCLIBC_MINOR__, __UCLIBC_SUBLEVEL__);
@@ -463,7 +466,7 @@ static const gchar *get_lib_version(void)
 /*!
  *\brief	operating system
  */
-static const gchar *get_operating_system(void)
+static gchar *get_operating_system(void)
 {
 #if HAVE_SYS_UTSNAME_H
 	struct utsname utsbuf;
@@ -530,7 +533,7 @@ static void crash_handler(int sig)
 		char *args[5];
 	
 		/*
-		 * probably also some other parameters (like GTK+ ones).
+		 * probably also some other parameters (like GTK ones).
 		 * also we pass the full startup dir and the real command
 		 * line typed in (argv0)
 		 */

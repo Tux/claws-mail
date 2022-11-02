@@ -1,6 +1,6 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2015 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -699,8 +699,8 @@ static void account_size_allocate_cb(GtkWidget *widget,
 {
 	cm_return_if_fail(allocation != NULL);
 
-	prefs_common.accountswin_width = allocation->width;
-	prefs_common.accountswin_height = allocation->height;
+	gtk_window_get_size(GTK_WINDOW(widget),
+		&prefs_common.accountswin_width, &prefs_common.accountswin_height);
 }
 
 static void account_edit_create(void)
@@ -740,11 +740,11 @@ static void account_edit_create(void)
 	MANAGE_WINDOW_SIGNALS_CONNECT (window);
 	gtk_widget_realize(window);
 
-	vbox = gtk_vbox_new (FALSE, 10);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
 	gtk_widget_show (vbox);
 	gtk_container_add (GTK_CONTAINER (window), vbox);
 
-	hbox = gtk_hbox_new (FALSE, 0);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	gtk_widget_show (hbox);
 	gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
 
@@ -753,13 +753,12 @@ static void account_edit_create(void)
 		   "in the order given, the checkbox indicates which accounts "
 		   "will be included. Bold text indicates the default account."));
 	gtk_widget_show (label);
-	gtk_widget_set_size_request(GTK_WIDGET(label), 
-				    prefs_common.accountswin_width-8, -1);
+
 	gtk_box_pack_start (GTK_BOX (hbox), label, FALSE, FALSE, 4);
 	gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_LEFT);
 	gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
 
-	hbox = gtk_hbox_new (FALSE, 8);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
 	gtk_widget_show (hbox);
 	gtk_box_pack_start (GTK_BOX (vbox), hbox, TRUE, TRUE, 0);
 	gtk_container_set_border_width (GTK_CONTAINER (hbox), 2);
@@ -775,47 +774,59 @@ static void account_edit_create(void)
 	gtk_widget_show(list_view);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), list_view);
 
-	vbox2 = gtk_vbox_new (FALSE, 0);
+	vbox2 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_widget_show (vbox2);
 	gtk_box_pack_start (GTK_BOX (hbox), vbox2, FALSE, FALSE, 0);
 
-	add_btn = gtk_button_new_from_stock(GTK_STOCK_NEW);
+	add_btn = gtk_button_new_with_mnemonic(_("_New"));
 	gtk_widget_show (add_btn);
 	gtk_box_pack_start (GTK_BOX (vbox2), add_btn, FALSE, FALSE, 4);
 	g_signal_connect (G_OBJECT(add_btn), "clicked",
 			  G_CALLBACK (account_add), NULL);
+	CLAWS_SET_TIP(add_btn,
+			_("Create a new account"));
 
-	edit_btn = gtk_button_new_from_stock (GTK_STOCK_EDIT);
+	edit_btn = gtk_button_new_with_mnemonic(_("_Edit"));
 	gtk_widget_show (edit_btn);
 	gtk_box_pack_start (GTK_BOX (vbox2), edit_btn, FALSE, FALSE, 4);
 	g_signal_connect (G_OBJECT(edit_btn), "clicked",
 			  G_CALLBACK (account_edit_prefs), NULL);
+	CLAWS_SET_TIP(edit_btn,
+			_("Edit preferences for the selected account"));
 
-	del_btn = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+	del_btn = gtkut_stock_button("edit-delete", _("D_elete"));
 	gtk_widget_show (del_btn);
 	gtk_box_pack_start (GTK_BOX (vbox2), del_btn, FALSE, FALSE, 4);
 	g_signal_connect (G_OBJECT(del_btn), "clicked",
 			  G_CALLBACK (account_delete), NULL);
+	CLAWS_SET_TIP(del_btn,
+			_("Delete the selected account from the list"));
 
-	clone_btn = gtk_button_new_from_stock(GTK_STOCK_COPY);
+	clone_btn = gtkut_stock_button("edit-copy", _("_Copy"));
 	gtk_widget_show (clone_btn);
 	gtk_box_pack_start (GTK_BOX (vbox2), clone_btn, FALSE, FALSE, 4);
 	g_signal_connect(G_OBJECT(clone_btn), "clicked",
 			 G_CALLBACK(account_clone), NULL);
-	
-	down_btn = gtk_button_new_from_stock(GTK_STOCK_GO_DOWN);
+	CLAWS_SET_TIP(clone_btn,
+			_("Create a new copy of the selected account"));
+
+	down_btn = gtkut_stock_button("go-down", _("_Down"));
 	gtk_widget_show (down_btn);
 	gtk_box_pack_end (GTK_BOX (vbox2), down_btn, FALSE, FALSE, 4);
 	g_signal_connect (G_OBJECT(down_btn), "clicked",
 			  G_CALLBACK (account_down), NULL);
+	CLAWS_SET_TIP(down_btn,
+			_("Move the selected account down"));
 
-	up_btn = gtk_button_new_from_stock(GTK_STOCK_GO_UP);
+	up_btn = gtkut_stock_button("go-up", _("_Up"));
 	gtk_widget_show (up_btn);
 	gtk_box_pack_end (GTK_BOX (vbox2), up_btn, FALSE, FALSE, 4);
 	g_signal_connect (G_OBJECT(up_btn), "clicked",
 			  G_CALLBACK (account_up), NULL);
+	CLAWS_SET_TIP(up_btn,
+			_("Move the selected account up"));
 
-	hbox = gtk_hbox_new (FALSE, 8);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
 	gtk_widget_show (hbox);
 	gtk_box_pack_start (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
 
@@ -827,8 +838,8 @@ static void account_edit_create(void)
 			  G_CALLBACK (account_set_default), NULL);
 
 	gtkut_stock_button_set_create_with_help(&confirm_area, &help_btn,
-			&close_btn, GTK_STOCK_CLOSE,
-			NULL, NULL, NULL, NULL);
+			&close_btn, "window-close", _("_Close"),
+			NULL, NULL, NULL, NULL, NULL, NULL);
 	gtk_widget_show(confirm_area);
 
 	gtk_box_pack_end (GTK_BOX (hbox), confirm_area, FALSE, FALSE, 0);
@@ -852,7 +863,7 @@ static void account_edit_create(void)
 
 	gtk_window_set_geometry_hints(GTK_WINDOW(window), NULL, &geometry,
 				      GDK_HINT_MIN_SIZE);
-	gtk_widget_set_size_request(window, prefs_common.accountswin_width,
+	gtk_window_set_default_size(GTK_WINDOW(window), prefs_common.accountswin_width,
 				    prefs_common.accountswin_height);
 #ifdef G_OS_WIN32
 	gtk_window_move(GTK_WINDOW(window), 48, 48);
@@ -1127,7 +1138,8 @@ static void account_delete(GtkWidget *widget, gpointer data)
 		   ac_prefs->account_name ? ac_prefs->account_name :
 		   _("(Untitled)"));
 	if (alertpanel_full(_("Delete account"), buf,
-		 	    GTK_STOCK_CANCEL, GTK_STOCK_DELETE, NULL, ALERTFOCUS_FIRST, FALSE,
+		 	    NULL, _("_Cancel"), "edit-delete", _("_Delete"),
+			    NULL, NULL, ALERTFOCUS_FIRST, FALSE,
 			    NULL, ALERT_WARNING) != G_ALERTALTERNATE)
 		return;
 	account_list_dirty = TRUE;
@@ -1507,17 +1519,17 @@ static void account_list_store_insert_account_item(GtkListStore *list_store,
 #ifdef USE_GNUTLS
 	protocol = ac_prefs->protocol == A_POP3 ?
 		  (ac_prefs->ssl_pop == SSL_TUNNEL ?
-		   "POP (SSL/TLS)" :
+		   "POP (TLS)" :
 		   ac_prefs->ssl_pop == SSL_STARTTLS ?
 		   "POP (STARTTLS)" : "POP") :
 		   ac_prefs->protocol == A_IMAP4 ?
 		  (ac_prefs->ssl_imap == SSL_TUNNEL ?
-		   "IMAP (SSL/TLS)" :
+		   "IMAP (TLS)" :
 		   ac_prefs->ssl_imap == SSL_STARTTLS ?
 		   "IMAP (STARTTLS)" : "IMAP") :
 		   ac_prefs->protocol == A_NNTP ?
 		  (ac_prefs->ssl_nntp == SSL_TUNNEL ?
-		   "NNTP (SSL/TLS)" : "NNTP") :
+		   "NNTP (TLS)" : "NNTP") :
 		   ac_prefs->protocol == A_LOCAL ? "Local" :
 		   ac_prefs->protocol == A_NONE ?  "SMTP" : "-";
 #else

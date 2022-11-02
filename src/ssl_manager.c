@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2016 Colin Leroy and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Colin Leroy
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -147,10 +147,10 @@ static GtkWidget *ssl_manager_list_view_create	(void)
 
 	model = GTK_TREE_MODEL(ssl_manager_create_data_store());
 	list_view = GTK_TREE_VIEW(gtk_tree_view_new_with_model(model));
-	g_object_unref(model);	
 	
  	gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model),
                                              0, GTK_SORT_ASCENDING);
+	g_object_unref(model);	
 	gtk_tree_view_set_rules_hint(list_view, prefs_common.use_stripes_everywhere);
 	
 	selector = gtk_tree_view_get_selection(list_view);
@@ -174,8 +174,8 @@ static void ssl_manager_size_allocate_cb(GtkWidget *widget,
 {
 	cm_return_if_fail(allocation != NULL);
 
-	prefs_common.sslmanwin_width = allocation->width;
-	prefs_common.sslmanwin_height = allocation->height;
+	gtk_window_get_size(GTK_WINDOW(widget),
+		&prefs_common.sslmanwin_width, &prefs_common.sslmanwin_height);
 }
 
 void ssl_manager_create(void)
@@ -192,7 +192,7 @@ void ssl_manager_create(void)
 
 	window = gtkut_window_new(GTK_WINDOW_TOPLEVEL, "ssl_manager");
 	gtk_window_set_title (GTK_WINDOW(window),
-			      _("Saved SSL/TLS certificates"));
+			      _("Saved TLS certificates"));
 
 	gtk_container_set_border_width (GTK_CONTAINER (window), 8);
 	gtk_window_set_position (GTK_WINDOW (window), GTK_WIN_POS_CENTER);
@@ -206,18 +206,20 @@ void ssl_manager_create(void)
 			 G_CALLBACK(key_pressed), NULL);
 	MANAGE_WINDOW_SIGNALS_CONNECT (window);
 
-	hbox1 = gtk_hbox_new(FALSE, 6);
-	vbox1 = gtk_vbox_new(FALSE, 0);
-	delete_btn = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+	hbox1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	vbox1 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	delete_btn = gtkut_stock_button("edit-delete", _("D_elete"));
 
 	g_signal_connect(G_OBJECT(delete_btn), "clicked",
 			 G_CALLBACK(ssl_manager_delete_cb), NULL);
 
-	view_btn = gtk_button_new_from_stock(GTK_STOCK_PROPERTIES);
+	view_btn = gtkut_stock_button("dialog-information", _("_Information"));
 	g_signal_connect(G_OBJECT(view_btn), "clicked",
 			 G_CALLBACK(ssl_manager_view_cb), NULL);
 
-	close_btn = gtk_button_new_from_stock(GTK_STOCK_CLOSE);
+	close_btn = gtk_button_new_with_mnemonic("_Close");
+	gtk_button_set_image(GTK_BUTTON(close_btn),
+			gtk_image_new_from_icon_name("window-close", GTK_ICON_SIZE_BUTTON));
 	g_signal_connect(G_OBJECT(close_btn), "clicked",
 			 G_CALLBACK(ssl_manager_close_cb), NULL);
 
@@ -243,7 +245,8 @@ void ssl_manager_create(void)
 
 	gtk_window_set_geometry_hints(GTK_WINDOW(window), NULL, &geometry,
 				      GDK_HINT_MIN_SIZE);
-	gtk_widget_set_size_request(window, prefs_common.sslmanwin_width,
+	gtk_window_set_default_size(GTK_WINDOW(window),
+				    prefs_common.sslmanwin_width,
 				    prefs_common.sslmanwin_height);
 
 	gtk_widget_show(certlist);
@@ -346,6 +349,7 @@ static void ssl_manager_load_certs (void)
 		debug_print("couldn't open dir '%s': %s (%d)\n", path,
 				error->message, error->code);
 		g_error_free(error);
+        g_free(path);
 		return;
 	}
 	
@@ -366,11 +370,13 @@ static void ssl_manager_load_certs (void)
 							server, port, cert);
 				}
 			}
-		
-			g_free(server);
-			g_free(port);
-			g_free(fp);
 		}
+		if (server)
+			g_free(server);
+		if (port)
+			g_free(port);
+		if (fp)
+			g_free(fp);
 		row++;
 	}
 	g_dir_close(dir);
@@ -444,8 +450,8 @@ static void ssl_manager_delete_cb(GtkWidget *widget,
 
 	val = alertpanel_full(_("Delete certificate"),
 			      _("Do you really want to delete this certificate?"),
-		 	      GTK_STOCK_CANCEL, GTK_STOCK_DELETE, NULL, ALERTFOCUS_FIRST,
-						FALSE, NULL, ALERT_WARNING);
+		 	      NULL, _("_Cancel"), "edit-delete", _("D_elete"), NULL, NULL,
+			      ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING);
 
 			     
 	if (val != G_ALERTALTERNATE)

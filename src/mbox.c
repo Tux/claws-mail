@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2020 the Claws Mail team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,10 +40,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <errno.h>
-
-#ifdef G_OS_WIN32
-#  include <w32lib.h>
-#endif
 
 #include "mbox.h"
 #include "procmsg.h"
@@ -108,7 +104,7 @@ gint proc_mbox(FolderItem *dest, const gchar *mbox, gboolean apply_filter,
 	/* ignore empty lines on the head */
 	do {
 		if (claws_fgets(buf, sizeof(buf), mbox_fp) == NULL) {
-			g_warning("can't read mbox file.");
+			g_warning("can't read mbox file");
 			claws_fclose(mbox_fp);
 			return -1;
 		}
@@ -322,7 +318,7 @@ gint lock_mbox(const gchar *base, LockType type)
 		lockfile = g_strdup_printf("%s.%d", base, getpid());
 		if ((lockfp = claws_fopen(lockfile, "wb")) == NULL) {
 			FILE_OP_ERROR(lockfile, "claws_fopen");
-			g_warning("can't create lock file '%s', use 'flock' instead of 'file' if possible.", lockfile);
+			g_warning("can't create lock file '%s', use 'flock' instead of 'file' if possible", lockfile);
 			g_free(lockfile);
 			return -1;
 		}
@@ -346,16 +342,17 @@ gint lock_mbox(const gchar *base, LockType type)
 			if (retry >= 5) {
 				g_warning("can't create '%s'", lockfile);
 				claws_unlink(lockfile);
+				g_free(locklink);
 				g_free(lockfile);
 				return -1;
 			}
 			if (retry == 0)
-				g_warning("mailbox is owned by another"
-					  " process, waiting...");
+				g_warning("mailbox is owned by another process, waiting");
 			retry++;
 			sleep(5);
 		}
 		claws_unlink(lockfile);
+		g_free(locklink);
 		g_free(lockfile);
 	} else if (type == LOCK_FLOCK) {
 		gint lockfd;
@@ -497,7 +494,7 @@ gint copy_mbox(gint srcfd, const gchar *dest)
 
 	while ((n_read = read(srcfd, buf, sizeof(buf))) > 0) {
 		if (claws_fwrite(buf, 1, n_read, dest_fp) < n_read) {
-			g_warning("writing to %s failed.", dest);
+			g_warning("writing to %s failed", dest);
 			claws_fclose(dest_fp);
 			claws_unlink(dest);
 			return -1;
@@ -529,7 +526,7 @@ void empty_mbox(const gchar *mbox)
 
 	if ((fp = claws_fopen(mbox, "wb")) == NULL) {
 		FILE_OP_ERROR(mbox, "claws_fopen");
-		g_warning("can't truncate mailbox to zero.");
+		g_warning("can't truncate mailbox to zero");
 		return;
 	}
 	claws_safe_fclose(fp);
@@ -549,7 +546,7 @@ gint export_list_to_mbox(GSList *mlist, const gchar *mbox)
 	if (g_file_test(mbox, G_FILE_TEST_EXISTS) == TRUE) {
 		if (alertpanel_full(_("Overwrite mbox file"),
 					_("This file already exists. Do you want to overwrite it?"),
-					GTK_STOCK_CANCEL, _("Overwrite"), NULL,
+					NULL, _("_Cancel"), NULL, _("Overwrite"), NULL, NULL,
 					ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING)
 				!= G_ALERTALTERNATE) {
 			return -2;

@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  * 
  */
+
+#include "config.h"
 
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -73,7 +75,7 @@ const gchar *plugin_name(void)
 
 const gchar *plugin_desc(void)
 {
-	return _("This Plugin is only a demo of how to write plugins for Claws Mail. "
+	return _("This plugin is only a demo of how to write plugins for Claws Mail. "
 	         "It installs a hook for new log output and writes it to stdout."
 	         "\n\n"
 	         "It is not really useful.");

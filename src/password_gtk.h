@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2016 Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,8 @@
 #ifndef __PASSWORD_GTK_H
 #define __PASSWORD_GTK_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #ifndef PASSWORD_CRYPTO_OLD
-void master_passphrase_change_dialog();
+void primary_passphrase_change_dialog();
 #endif
 
 #endif /* __PASSWORD_GTK_H */

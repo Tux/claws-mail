@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto & The Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,6 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 #ifdef _WIN32
-# include <w32lib.h>
 # define MAP_FAILED	((char *) -1)
 #else
 # include <sys/mman.h>
@@ -306,7 +305,7 @@ gint msgcache_get_memory_usage(MsgCache *cache)
 	size_t ni; \
  \
 	if ((ni = claws_fread(&idata, sizeof(idata), 1, fp)) != 1) { \
-		g_warning("read_int: Cache data corrupted, read %"G_GSIZE_FORMAT" of %"G_GSIZE_FORMAT" at " \
+		g_warning("read_int: cache data corrupted, read %"G_GSIZE_FORMAT" of %"G_GSIZE_FORMAT" at " \
 			  "offset %ld", ni, sizeof(idata), ftell(fp)); \
 		procmsg_msginfo_free(&msginfo); \
 		error = TRUE; \
@@ -319,6 +318,7 @@ gint msgcache_get_memory_usage(MsgCache *cache)
 {												\
 	if (rem_len < 4) {									\
 		g_print("error at rem_len:%d\n", rem_len);					\
+		procmsg_msginfo_free(&msginfo); \
 		error = TRUE;									\
 		goto bail_err;									\
 	}											\
@@ -331,6 +331,7 @@ gint msgcache_get_memory_usage(MsgCache *cache)
 	GET_CACHE_DATA_INT(tmp_len);	\
 	if (rem_len < tmp_len) {								\
 		g_print("error at rem_len:%d (tmp_len %d)\n", rem_len, tmp_len);		\
+		procmsg_msginfo_free(&msginfo); \
 		error = TRUE;									\
 		goto bail_err;									\
 	}											\
@@ -400,7 +401,7 @@ static FILE *msgcache_open_data_file(const gchar *file, guint version,
 				     gchar *buf, size_t buf_size)
 {
 	FILE *fp;
-	gint32 data_ver;
+	gint32 data_ver = 0;
 
 	cm_return_val_if_fail(file != NULL, NULL);
 
@@ -467,7 +468,7 @@ static gint msgcache_read_cache_data_str(FILE *fp, gchar **str,
 	if (!swapping) {
 		if ((ni = claws_fread(&len, sizeof(len), 1, fp) != 1) ||
 		    len > G_MAXINT) {
-			g_warning("read_data_str: Cache data (len) corrupted, read %"G_GSIZE_FORMAT
+			g_warning("read_data_str: cache data (len) corrupted, read %"G_GSIZE_FORMAT
 				  " of %"G_GSIZE_FORMAT" bytes at offset %ld", ni, sizeof(len),
 				  ftell(fp));
 			return -1;
@@ -475,7 +476,7 @@ static gint msgcache_read_cache_data_str(FILE *fp, gchar **str,
 	} else {
 		if ((ni = claws_fread(&len, sizeof(len), 1, fp) != 1) ||
 		    bswap_32(len) > G_MAXINT) {
-			g_warning("read_data_str: Cache data (len) corrupted, read %"G_GSIZE_FORMAT
+			g_warning("read_data_str: cache data (len) corrupted, read %"G_GSIZE_FORMAT
 				  " of %"G_GSIZE_FORMAT" bytes at offset %ld", ni, sizeof(len),
 				  ftell(fp));
 			return -1;
@@ -493,7 +494,7 @@ static gint msgcache_read_cache_data_str(FILE *fp, gchar **str,
 	}
 
 	if ((ni = claws_fread(tmpstr, 1, len, fp)) != len) {
-		g_warning("read_data_str: Cache data corrupted, read %"G_GSIZE_FORMAT" of %u "
+		g_warning("read_data_str: cache data corrupted, read %"G_GSIZE_FORMAT" of %u "
 			  "bytes at offset %ld",
 			  ni, len, ftell(fp));
 		g_free(tmpstr);
@@ -521,7 +522,7 @@ static gint msgcache_get_cache_data_str(gchar *src, gchar **str, gint len,
 		return 0;
 
 	if(len > 2*1024*1024) {
-		g_warning("read_data_str: refusing to allocate %d bytes.", len);
+		g_warning("read_data_str: refusing to allocate %d bytes", len);
 		return -1;
 	}
 
@@ -663,9 +664,10 @@ MsgCache *msgcache_read_cache(FolderItem *item, const gchar *cache_file)
 		char *walk_data = cache_data+ftell(fp);
 
 		while(rem_len > 0) {
-			GET_CACHE_DATA_INT(num);
-			
 			msginfo = procmsg_msginfo_new();
+
+			GET_CACHE_DATA_INT(num);
+
 			msginfo->msgnum = num;
 			memusage += sizeof(MsgInfo);
 

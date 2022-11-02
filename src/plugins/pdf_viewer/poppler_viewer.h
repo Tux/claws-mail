@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2016 Salvatore De Paolis & the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,14 +19,12 @@
 #ifndef POPPLER_VIEWER_H
 #define POPPLER_VIEWER_H
 
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
-
 //#include <unistd.h>
 #include <stdio.h>
 #include <gtk/gtk.h>
+#ifndef G_OS_WIN32
 #include <gdk/gdkx.h>
+#endif
 #include <gdk/gdkkeysyms.h>
 #include <poppler.h>
 #include <version.h>
@@ -34,7 +32,6 @@
 #include <messageview.h>
 #include <mimeview.h>
 #include <alertpanel.h>
-#include <mimeview.h>
 
 /*#ifdef USE_PTHREAD
  *#include <pthread.h>
@@ -89,7 +86,7 @@ struct _PdfViewer
 	GtkWidget			*doc_info;
 	GtkWidget			*doc_index;
 	/* end GtkButtons */
-	GtkTable			*table_doc_info;
+	GtkWidget			*table_doc_info;
 
 	PopplerDocument		*pdf_doc;
 	PopplerPage			*pdf_page;

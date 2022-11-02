@@ -1,8 +1,7 @@
 Claws Mail
 
-	Holger Berndt		<berndth@users.sf.net>
+	Jonathan Boeing 	<jonathan@claws-mail.org>
 	Tristan Chabredier	<wwp@claws-mail.org>
-	Darko Koruga		<darko@users.sourceforge.net>
 	Paul Mangan		<paul@claws-mail.org>
 	Thorsten Maerz		<thorsten@claws-mail.org>
 	Ricardo Mones Lastra 	<ricardo@mones.org>
@@ -10,6 +9,7 @@ Claws Mail
 	Michael Rasmussen	<mir@datanom.net>
  
 	Ex Team Members
+	Holger Berndt		<berndth@users.sf.net>
 	Hoa viet Dinh		<dinh.viet.hoa@free.fr>
 	Keith Edmunds 		<keith@midnighthax.com>	
 	Match Grun		<match@dimensional.com>
@@ -19,7 +19,8 @@ Claws Mail
 	Alfons Hoogervorst	<alfons@proteus.demon.nl>
 	Andrej Kacian		
 	Werner Koch		<wk@gnupg.org>
-	Charles Lehner		
+	Darko Koruga		<darko@users.sourceforge.net>
+	Charles Lehner
 	Colin Leroy-Mira	<colin@colino.net>
 	Pawel Pekala		<cOrn@o2.pl>
 	Leandro A. F. Pereira 	<leandro@linuxmag.com.br>
@@ -33,7 +34,8 @@ Claws Mail
 Claws Mail for Windows
 
 	Jonathan Boeing		<jonathan@claws-mail.org> 
-	
+	Thorsten Maerz		<thorsten@claws-mail.org>
+
 	Ex Team Members
 	Werner Koch		<wk@gnupg.org>
 
@@ -42,7 +44,7 @@ Claws Mail translation team
 	[ca]	David Medina 		<opensusecatala@gmail.com>
 	[cs] 	David Vachulka 		<david@konstrukce-cad.com>
 	[da] 	Erik P. Olsen 		<epodata@gmail.com>
-	[de]	Simon Legner		<simon.legner@gmail.com>
+	[de]	Simon Legner
 	[el_GR]	Haris Karachristianidis	<hariskar@cryptolab.net>
 	[en_GB]	Paul Mangan		<paul@claws-mail.org>
 	[es]	Ricardo Mones Lastra 	<ricardo@mones.org>
@@ -54,7 +56,7 @@ Claws Mail translation team
 	[ja] 	UTUMI Hirosi		<utuhiro78@yahoo.co.jp>
 	[nb]	Petter Adsen 		<petter@synth.no>
 	[nl]	Marcel Pol		<mpol@gmx.net>
-	[pl] 	Jakub Jankiewicz 	<jcubic@jcubic.pl>
+	[pl] 	Łukasz Wojniłowicz	<lukasz.wojnilowicz@gmail.com>
 	[pt_BR] Frederico Goncalves Guimaraes 
 					<frederico@teia.bio.br>
 	[pt_PT] Pedro Albuquerque 	<palbuquerque73@gmail.com>
@@ -71,6 +73,7 @@ Claws Mail documentation team
 		Colin Leroy		<colin@colino.net>
 		Paul Mangan		<paul@claws-mail.org>
 		Tristan Chabredier	<wwp@claws-mail.org>
+	[de]	Christoph Klassen	<christoph.klassen@intevation.de>
 	[es]	Ricardo Mones Lastra 	<ricardo@mones.org>
 	[fr]	Colin Leroy		<colin@colino.net>
 		Tristan Chabredier	<wwp@claws-mail.org>
@@ -333,10 +336,9 @@ contributors (in addition to the above; based on Changelog)
 	Raphael Michel
 	Damian Poddebniak
 	Alvar Penning
-        David Fletcher
+	David Fletcher
 	Orivej Desh
 	Steve Randall
 	Ramin Yaghoubzadeh Torky
 	Manuel Stoeckl
-        David Fletcher
 	Frank Mueller

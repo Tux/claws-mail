@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- A GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- A GTK based, lightweight, and fast e-mail client
  * Copyright(C) 2019 the Claws Mail Team
  *
  * litehtml callbacks related to text rendering
@@ -16,6 +16,8 @@
  * along with this program; if not, write tothe Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+
+#include "config.h"
 
 #include <glib.h>
 

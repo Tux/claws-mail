@@ -17,7 +17,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#define __USE_GNU
+#include "config.h"
 
 #include <stdlib.h>
 #include <glib.h>
@@ -32,7 +32,7 @@ FeedItemEnclosure *feed_item_enclosure_new(gchar *url, gchar *type, gulong size)
 	g_return_val_if_fail(type != NULL, NULL);
 	g_return_val_if_fail(size > 0, NULL);
 
-	enclosure = malloc( sizeof(FeedItemEnclosure) );
+	enclosure = g_malloc( sizeof(FeedItemEnclosure) );
 	enclosure->url = g_strdup(url);
 	enclosure->type = g_strdup(type);
 	enclosure->size = size;

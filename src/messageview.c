@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2016 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "defs.h"
 
 #include <glib.h>
@@ -322,12 +323,14 @@ static GtkActionEntry msgview_entries[] =
 	{"Tools/CreateFilterRule/ByFrom",            NULL, N_("By _From"), NULL, NULL, G_CALLBACK(create_filter_cb) }, /* FILTER_BY_FROM */
 	{"Tools/CreateFilterRule/ByTo",              NULL, N_("By _To"), NULL, NULL, G_CALLBACK(create_filter_cb) }, /* FILTER_BY_TO     */
 	{"Tools/CreateFilterRule/BySubject",         NULL, N_("By _Subject"), NULL, NULL, G_CALLBACK(create_filter_cb) }, /* FILTER_BY_SUBJECT */
+	{"Tools/CreateFilterRule/BySender",          NULL, N_("By S_ender"), NULL, NULL, G_CALLBACK(create_filter_cb) }, /* FILTER_BY_SENDER */
 
 	{"Tools/CreateProcessingRule",               NULL, N_("Create processing rule"), NULL, NULL, NULL },
 	{"Tools/CreateProcessingRule/Automatically", NULL, N_("_Automatically"), NULL, NULL, G_CALLBACK(create_processing_cb) }, 
 	{"Tools/CreateProcessingRule/ByFrom",        NULL, N_("By _From"), NULL, NULL, G_CALLBACK(create_processing_cb) }, 
 	{"Tools/CreateProcessingRule/ByTo",          NULL, N_("By _To"), NULL, NULL, G_CALLBACK(create_processing_cb) }, 
 	{"Tools/CreateProcessingRule/BySubject",     NULL, N_("By _Subject"), NULL, NULL, G_CALLBACK(create_processing_cb) }, 
+	{"Tools/CreateProcessingRule/BySender",      NULL, N_("By S_ender"), NULL, NULL, G_CALLBACK(create_processing_cb) },
 	/* {"Tools/---",                             NULL, "---", NULL, NULL, NULL }, */
 
 	{"Tools/ListUrls",                           NULL, N_("List _URLs..."), "<control><shift>U", NULL, G_CALLBACK(open_urls_cb) }, 
@@ -415,7 +418,8 @@ MessageView *messageview_create(MainWindow *mainwin)
 	mimeview->textview->messageview = messageview;
 	mimeview->messageview = messageview;
 
-	vbox = gtk_vbox_new(FALSE, 0);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_widget_set_name(GTK_WIDGET(vbox), "messageview");
 	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET_PTR(headerview),
 			   FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET_PTR(noticeview),
@@ -468,7 +472,7 @@ static void messageview_add_toolbar(MessageView *msgview, GtkWidget *window)
 	GtkActionGroup *action_group;
 
 
-	vbox = gtk_vbox_new(FALSE, 0);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_widget_show(vbox);
 	gtk_container_add(GTK_CONTAINER(window), vbox);	
 
@@ -646,12 +650,14 @@ static void messageview_add_toolbar(MessageView *msgview, GtkWidget *window)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateFilterRule", "ByFrom", "Tools/CreateFilterRule/ByFrom", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateFilterRule", "ByTo", "Tools/CreateFilterRule/ByTo", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateFilterRule", "BySubject", "Tools/CreateFilterRule/BySubject", GTK_UI_MANAGER_MENUITEM)
+	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateFilterRule", "BySender", "Tools/CreateFilterRule/BySender", GTK_UI_MANAGER_MENUITEM)
 
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools", "CreateProcessingRule", "Tools/CreateProcessingRule", GTK_UI_MANAGER_MENU)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateProcessingRule", "Automatically", "Tools/CreateProcessingRule/Automatically", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateProcessingRule", "ByFrom", "Tools/CreateProcessingRule/ByFrom", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateProcessingRule", "ByTo", "Tools/CreateProcessingRule/ByTo", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateProcessingRule", "BySubject", "Tools/CreateProcessingRule/BySubject", GTK_UI_MANAGER_MENUITEM)
+	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools/CreateProcessingRule", "BySender", "Tools/CreateProcessingRule/BySender", GTK_UI_MANAGER_MENUITEM)
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools", "Separator2", "Tools/---", GTK_UI_MANAGER_SEPARATOR)
 	
 	MENUITEM_ADDUI_MANAGER(msgview->ui_manager, "/Menu/Tools", "ListUrls", "Tools/ListUrls", GTK_UI_MANAGER_MENUITEM)
@@ -672,11 +678,7 @@ static void messageview_add_toolbar(MessageView *msgview, GtkWidget *window)
 	cm_toggle_menu_set_active_full(msgview->ui_manager, "Menu/View/AllHeaders",
 					prefs_common.show_all_headers);
 
-	if (prefs_common.toolbar_detachable) {
-		handlebox = gtk_handle_box_new();
-	} else {
-		handlebox = gtk_hbox_new(FALSE, 0);
-	}
+	handlebox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), handlebox, FALSE, FALSE, 0);
 	gtk_widget_realize(handlebox);
 	msgview->toolbar = toolbar_create(TOOLBAR_MSGVIEW, handlebox,
@@ -715,6 +717,9 @@ static MessageView *messageview_create_with_new_window_visible(MainWindow *mainw
 	gtk_window_set_title(GTK_WINDOW(window), _("Claws Mail - Message View"));
 	gtk_window_set_resizable(GTK_WINDOW(window), TRUE);
 
+	gtk_window_set_default_size(GTK_WINDOW(window), prefs_common.msgwin_width,
+			prefs_common.msgwin_height);
+
 	if (!geometry.min_height) {
 		geometry.min_width = 320;
 		geometry.min_height = 200;
@@ -722,8 +727,6 @@ static MessageView *messageview_create_with_new_window_visible(MainWindow *mainw
 	gtk_window_set_geometry_hints(GTK_WINDOW(window), NULL, &geometry,
 				      GDK_HINT_MIN_SIZE);
 
-	gtk_widget_set_size_request(window, prefs_common.msgwin_width,
-				    prefs_common.msgwin_height);
 #ifdef G_OS_WIN32
 	gtk_window_move(GTK_WINDOW(window), 48, 48);
 #endif
@@ -856,8 +859,9 @@ static gint disposition_notification_send(MsgInfo *msginfo)
 		    "It is advised to not send the return receipt."),
 		  to, buf);
 		val = alertpanel_full(_("Warning"), message,
-				_("_Don't Send"), _("_Send"), NULL, ALERTFOCUS_FIRST, FALSE,
-				NULL, ALERT_WARNING);
+				      NULL, _("_Don't Send"), NULL, _("_Send"),
+				      NULL, NULL, ALERTFOCUS_FIRST, FALSE,
+				      NULL, ALERT_WARNING);
 		g_free(message);				
 		if (val != G_ALERTALTERNATE) {
 			g_free(buf);
@@ -964,8 +968,10 @@ static gint disposition_notification_send(MsgInfo *msginfo)
 		}
 		g_free(buf);
 		buf = NULL;
-	} else
-		goto FILE_ERROR;
+	} else {
+		if (fprintf(fp, "From: %s\n", account->address) < 0)
+			goto FILE_ERROR;
+	}
 
 	if (fprintf(fp, "To: %s\n", to) < 0)
 		goto FILE_ERROR;
@@ -1372,7 +1378,7 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 		statusbar_pop_all();
 
 	if (!file) {
-		g_warning("can't get message file path.");
+		g_warning("can't get message file path");
 		textview_show_error(messageview->mimeview->textview);
 		return -1;
 	}
@@ -1520,8 +1526,8 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 			}
 			messageview_find_part_depth_first(&context, MIMETYPE_TEXT, "html");
 			if (context.found &&
-			    ((msginfo->folder && msginfo->folder->prefs->promote_html_part == HTML_PROMOTE_ALWAYS) ||
-			     ((msginfo->folder && msginfo->folder->prefs->promote_html_part == HTML_PROMOTE_DEFAULT) &&
+			    (msginfo->folder->prefs->promote_html_part == HTML_PROMOTE_ALWAYS ||
+			     (msginfo->folder->prefs->promote_html_part == HTML_PROMOTE_DEFAULT &&
 			      prefs_common.promote_html_part))) { /* html found */
 				mimeinfo = context.found;
 				if (messageview_try_select_mimeinfo(messageview, msginfo, mimeinfo))
@@ -1831,8 +1837,8 @@ static void messageview_size_allocate_cb(GtkWidget *widget,
 {
 	cm_return_if_fail(allocation != NULL);
 
-	prefs_common.msgwin_width  = allocation->width;
-	prefs_common.msgwin_height = allocation->height;
+	gtk_window_get_size(GTK_WINDOW(widget),
+		&prefs_common.msgwin_width, &prefs_common.msgwin_height);
 }
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event,
@@ -1847,6 +1853,13 @@ static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event,
 		return FALSE;
 	if (event && (event->state & GDK_SHIFT_MASK) && event->keyval != GDK_KEY_space) 
 		return FALSE;
+
+	if (event && (event->keyval == GDK_KEY_KP_Enter || event->keyval ==  GDK_KEY_Return) &&
+	    messageview->window) {
+		MsgInfo *new_msginfo = summary_get_selected_msg(messageview->mainwin->summaryview);
+		messageview_show(messageview, new_msginfo, messageview->all_headers);
+		return FALSE;
+	}
 
 	return mimeview_pass_key_press_event(messageview->mimeview, event);
 }
@@ -1923,7 +1936,7 @@ static void return_receipt_send_clicked(NoticeView *noticeview, MsgInfo *msginfo
 
 	file = procmsg_get_message_file_path(msginfo);
 	if (!file) {
-		g_warning("can't get message file path.");
+		g_warning("can't get message file path");
 		return;
 	}
 
@@ -2064,9 +2077,8 @@ static PrefsAccount *select_account_from_list(GList *ac_list, gboolean has_accou
 		  prefs_common_translated_header_name("Cc"));
 		val = alertpanel_with_widget(
 				_("Return Receipt Notification"),
-				text,
-				_("_Cancel"), _("_Send Notification"), NULL,
-				ALERTFOCUS_FIRST, FALSE, optmenu);
+				text, NULL, _("_Cancel"), NULL, _("_Send Notification"),
+				NULL, NULL, ALERTFOCUS_FIRST, FALSE, optmenu);
 		g_free(tr);
 		g_free(text);
 	} else
@@ -2076,8 +2088,8 @@ static PrefsAccount *select_account_from_list(GList *ac_list, gboolean has_accou
 				 "address that this message was sent to.\n"
 				 "Please choose which account you want to "
 				 "use for sending the receipt notification:"),
-				_("_Cancel"), _("_Send Notification"), NULL,
-				ALERTFOCUS_FIRST, FALSE, optmenu);
+				NULL, _("_Cancel"), NULL, _("_Send Notification"),
+				NULL, NULL, ALERTFOCUS_FIRST, FALSE, optmenu);
 
 	if (val != G_ALERTALTERNATE)
 		return NULL;
@@ -2229,7 +2241,7 @@ void messageview_print(MsgInfo *msginfo, gboolean all_headers,
 						(prefs_common.textfont);
 	}
 	if (font_desc) {
-		gtk_widget_modify_font(tmpview->mimeview->textview->text, 
+		gtk_widget_override_font(tmpview->mimeview->textview->text, 
 			font_desc);
 		pango_font_description_free(font_desc);
 	}
@@ -2240,6 +2252,7 @@ void messageview_print(MsgInfo *msginfo, gboolean all_headers,
 			print_mimeview(tmpview->mimeview, 
 				sel_start, sel_end, partnum);
 	}
+	messageview_clear(tmpview);
 	messageview_destroy(tmpview);
 }
 
@@ -2834,7 +2847,7 @@ static void addressbook_open_cb(GtkAction *action, gpointer data)
 	
 	addressbook_dbus_open(FALSE, &error);
 	if (error) {
-		g_warning("Failed to open address book: %s", error->message);
+		g_warning("failed to open address book: %s", error->message);
 		g_error_free(error);
 	}
 #endif
@@ -2889,6 +2902,7 @@ static void create_filter_cb(GtkAction *gaction, gpointer data)
 	DO_ACTION("Tools/CreateFilterRule/ByFrom", FILTER_BY_FROM);
 	DO_ACTION("Tools/CreateFilterRule/ByTo", FILTER_BY_TO);
 	DO_ACTION("Tools/CreateFilterRule/BySubject", FILTER_BY_SUBJECT);
+	DO_ACTION("Tools/CreateFilterRule/BySender", FILTER_BY_SENDER);
 	
 	item = messageview->msginfo->folder;
 	summary_msginfo_filter_open(item,  messageview->msginfo,
@@ -2908,6 +2922,7 @@ static void create_processing_cb(GtkAction *gaction, gpointer data)
 	DO_ACTION("Tools/CreateProcessingRule/ByFrom", FILTER_BY_FROM);
 	DO_ACTION("Tools/CreateProcessingRule/ByTo", FILTER_BY_TO);
 	DO_ACTION("Tools/CreateProcessingRule/BySubject", FILTER_BY_SUBJECT);
+	DO_ACTION("Tools/CreateProcessingRule/BySender", FILTER_BY_SENDER);
 
 	item = messageview->msginfo->folder;
 	summary_msginfo_filter_open(item,  messageview->msginfo,
@@ -2935,8 +2950,7 @@ static gboolean messageview_update_msg(gpointer source, gpointer data)
 		return FALSE;
 
 	if ((msginfo_update->flags & MSGINFO_UPDATE_DELETED) ||
-	    MSG_IS_DELETED(old_msginfo->flags))
-	{
+	    MSG_IS_DELETED(old_msginfo->flags)) {
 		if (messageview->new_window) {
 			if (old_msginfo->folder && old_msginfo->folder->total_msgs == 0) {
 				messageview_clear(messageview);
@@ -2945,20 +2959,19 @@ static gboolean messageview_update_msg(gpointer source, gpointer data)
 				return FALSE;
 			}
 			
-			if (!prefs_common.always_show_msg) {
-				messageview_clear(messageview);
-				textview_show_info(messageview->mimeview->textview,
-					MSG_IS_DELETED(old_msginfo->flags) ?
-					_("\n  Message has been deleted") :
-					_("\n  Message has been deleted or moved to another folder"));
+ 			if (!OPEN_SELECTED_ON_DELETEMOVE && !OPEN_SELECTED_ON_PREVNEXT) {
+ 				messageview_clear(messageview);
+  				textview_show_info(messageview->mimeview->textview,
+  					MSG_IS_DELETED(old_msginfo->flags) ?
+  					_("\n  Message has been deleted") :
+  					_("\n  Message has been deleted or moved to another folder"));
 			} else
 				messageview->update_needed = TRUE;
-
 		} else {
 			messageview_clear(messageview);
 			messageview_update(messageview, old_msginfo);
 		}
-	} 
+	}
 
 	return FALSE;
 }
@@ -3016,7 +3029,11 @@ void messageview_list_urls (MessageView	*msgview)
 		if (uri->uri &&
 		    (!g_ascii_strncasecmp(uri->uri, "ftp.", 4) ||
 		     !g_ascii_strncasecmp(uri->uri, "ftp:", 4) ||
+		     !g_ascii_strncasecmp(uri->uri, "ftps:", 5) ||
+		     !g_ascii_strncasecmp(uri->uri, "sftp:", 5) ||
 		     !g_ascii_strncasecmp(uri->uri, "www.", 4) ||
+		     !g_ascii_strncasecmp(uri->uri, "webcal:", 7) ||
+		     !g_ascii_strncasecmp(uri->uri, "webcals:", 8) ||
 		     !g_ascii_strncasecmp(uri->uri, "http:", 5) ||
 		     !g_ascii_strncasecmp(uri->uri, "https:", 6)))
 		{

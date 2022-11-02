@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2016 The Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -532,6 +532,7 @@ int passwd_store_read_config(void)
 						debug_print("config_version:%d looks invalid, ignoring it\n",
 								config_version);
 						config_version = -1; /* set to default value if missing */
+						g_strfreev(line);
 						i++; continue;
 					}
 					debug_print("config_version in file is %d\n", config_version);

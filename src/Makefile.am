@@ -1,4 +1,4 @@
-# Copyright 1999-2014 the Claws Mail team.
+# Copyright 1999-2021 the Claws Mail team.
 # This file is part of Claws Mail package, and distributed under the
 # terms of the General Public License version 3 (or later).
 # See COPYING file for license details.
@@ -20,17 +20,14 @@ endif
 bin_PROGRAMS = claws-mail
 
 if PLATFORM_WIN32
-LTRCCOMPILE = $(LIBTOOL) --mode=compile --tag=RC $(RC) \
-     `echo $(DEFS) $(DEFAULT_INCLUDES) $(IFLAGS) | \
-     sed -e 's/-I/--include-dir /g;s/-D/--define /g'`
-
 %.o : %.rc
-	$(LTRCCOMPILE) -i $< -o $@
+	$(LIBTOOL) --mode=compile --tag=RC $(RC) -I$(srcdir) -i $< -o $@
 
-claws_mail_res_ldflag = -Wl,w32-resource.o
+claws_mail_platform_ldflags = -Wl,w32-resource.o \
+	-Wl,--export-all-symbols,--out-implib=libclaws.a
 claws_mail_deps = w32-resource.o
 else
-claws_mail_res_ldflag =
+claws_mail_platform_ldflags =
 claws_mail_deps =
 endif
 
@@ -378,7 +375,7 @@ CLEANFILES = \
 
 EXTRA_DIST = \
 	claws-contacts.xml \
-	w32-logo.ico w32-resource.rc \
+	w32-logo.ico \
 	pixmaps/addr_one.xpm \
 	pixmaps/addr_two.xpm \
 	pixmaps/address_book.xpm \
@@ -585,7 +582,7 @@ IFLAGS = \
 	-I$(srcdir)/etpan
 
 claws_mail_LDFLAGS = \
-	$(claws_mail_res_ldflag)
+	$(claws_mail_platform_ldflags)
 
 claws_mail_DEPENDENCIES = $(claws_mail_deps) \
 	$(etpan_library) \
@@ -633,6 +630,9 @@ AM_CPPFLAGS = \
 	$(NETWORKMANAGER_SUPPORT_CFLAGS) \
 	$(VALGRIND_CFLAGS) \
 	$(CONTACTS_CFLAGS)
+
+matcher_parser_lex.$(OBJEXT) : AM_CFLAGS += -Wno-unused-function
+quote_fmt_lex.$(OBJEXT) : AM_CFLAGS += -Wno-unused-function
 
 #no-unused-function is there because of bison stuff
 #no-deprecated-declarations because of gpgme_data_rewind, which we have

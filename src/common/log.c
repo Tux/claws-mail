@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2021 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,10 +23,6 @@
 #endif
 
 #include "defs.h"
-
-#ifdef G_OS_WIN32
-#  include <w32lib.h>
-#endif
 
 #include <glib.h>
 #include <glib/gi18n.h>

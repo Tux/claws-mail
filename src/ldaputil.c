@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2003-2018 Match Grun and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -243,7 +243,7 @@ GList *ldaputil_read_basedn(
 {
 	GList *baseDN = NULL;
 	LDAP *ld = NULL;
-	LdapControl *ctl = ldapctl_create();
+	LdapControl *ctl;
 	gint rc;
 
 	if( host == NULL ) 
@@ -251,6 +251,7 @@ GList *ldaputil_read_basedn(
 	if( port < 1 ) 
 		return NULL;
 
+    ctl = ldapctl_create();
 	ldapctl_set_tls(ctl, tls);
 	ldapctl_set_ssl(ctl, ssl);
 	ldapctl_set_port(ctl, port);

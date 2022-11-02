@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2014 Colin Leroy <colin@colino.net>
  * and the Claws Mail Team
  *
@@ -42,7 +42,6 @@
 #include "procmsg.h"
 #include "log.h"
 #include "inc.h"
-#include "plugin.h"
 #include "menu.h"
 #include "defs.h"
 #include "procheader.h"
@@ -287,7 +286,7 @@ static void report_spam(gint id, ReportInterface *intf, MsgInfo *msginfo, gchar 
 		}
 		break;
 	default:
-		g_warning("Unknown method");
+		g_warning("unknown method");
 	}
 	g_free(reqbody);
 	g_free(geturl);
@@ -408,7 +407,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)

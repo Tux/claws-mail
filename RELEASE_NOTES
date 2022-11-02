@@ -1,4 +1,4 @@
-10th July 2021                                      Claws Mail 3.18.0
+20th October 2022                                    Claws Mail 4.1.1
 
 		    CLAWS MAIL  RELEASE NOTES
                     http://www.claws-mail.org
@@ -9,63 +9,52 @@ email client.
 New in this release:
 ~~~~~~~~~~~~~~~~~~~~
 
-* Support for the OAuth2 authorisation protocol has been added for
-  IMAP, POP and SMTP using custom, user-generated client IDs.
+* Marked messages in the Message List can now be displayed with bold
+  text by setting the hidden preference "bold_marked".
 
-  OAuth2 preferences are found in the Account Preferences on the
-  Receive page (for POP: Authenticate before POP connection, for
-  IMAP: Authentication method); the Send page (SMTP authentication:
-  Authentication method); and on a dedicated OAuth2 page.
+* The confirmation dialogue when saving all the attachments of a
+  message can now be disabled.
 
-* The option 'Save (X-)Face in address book if possible' has been
-  added to the /Message View/Text Options preferences page.
-  Previously the (X-)Face would be saved automatically, therefore
-  this option is turned on by default.
+* The Message List tooltip for the From column now shows name and
+  address.
 
-* The Image Viewer has been reworked. New options have been added to
-  /Message View/Image Viewer: when resizing images, either fit the
-  image width or fit the image height to the available space.
-  Fitting the image height is the default. Regardless of this
-  setting, when displaying images inline they will fit the height.
+* OAuth2: various fixes and improvements.
 
-  When displaying an image, left-clicking the image will toggle
-  between full size and reduced size; right-clicking will toggle
-  between fitting the height and fitting the width.
+* The user manuals have been updated.
 
-* When re-editing a saved message, it is now possible to use
-  /Options/Remove References.
+* Updated translations: Brazilian Portuguese, Catalan, Czech, Dutch,
+  French, Polish, Russian, Slovak, Spanish, Swedish, Traditional
+  Chinese, Turkish.
 
-* It is now possible to attempt to retrieve a missing GPG key via
-  WKD.
-
-* The man page has been updated.
-
-* Updated translations: Brazilian Portuguese, British English,
-  Catalan, Czech, Danish, Dutch, French, Polish, Romanian, Russian,
-  Slovak, Spanish, Traditional Chinese, Turkish.
+* Build system: GLib version 2.50 or greater is required; autoconf
+  version 2.69 or greater is required; pkgconfig support for GPGME
+  and libgpg-error has been added; GnuTLS is required for OAuth2;
+  OAuth2 support can be removed with --disable-oauth2.
 
 * bug fixes:
-	o bug 2411, 'quicksearch_history content partially written to
-		     stdout'
-	o bug 4326, 'Xft.dpi != 96 messes with text display in
-		     litehtml viewer'
-	o bug 4394, 'folder processing runs on startup even if all
-		     rules are disabled'
-	o bug 4431, 'folder chmod doesn't affect .claws_mark and
-		     .claws_cache files'
-	o bug 4445, 'Draft folder on shared storage does not honour
-		     chmod settings'
-	o bug 4447, '--enable-deprecated and --disable-deprecated
-		     build flags have same effect'
-	o bug 4455, 'Potential memory leak in string_table_new()'
-	o bug 4473, 'segmentation fault opening Libravatar config'
-	o stop WM's X button from causing GPG key fetch attempt
-	o Make fancy respect default font size for messageview
-	o harden link checker before accepting click
-	o non-display of (X-)Face when prefs_common.enable_avatars
-	  is AVATARS_ENABLE_RENDER (2)
-	o debian bug #983778, 'Segfault on selecting empty 'X-Face'
-	  custom header'
+	• bug 4547, '--enable-tests makes compilation fail'
+	• bug 4583, 'Compose window 'Discard message' dialog is
+		     displayed even though draft is already saved'
+	• bug 4584, 'Compose window causing Claws to terminate
+		     unexpectedly'
+	• bug 4589, 'Edit Group Details panel wording unclear.'
+	• bug 4615, 'Compilation fails with --disable-gnutls'
+	• bug 4620, 'German translation of Content-Transfer-Encoding
+		     adds unwanted colon'
+	• bug 4628, 'typos in the README file'
+	• bug 4630, 'Fancy loads remote images when remote content
+		     is disabled'
+	• bug 4636, 'Handle non-ascii characters in server response'
+	• AddressKeeper plugin: not saving addresses.
+	• Perl plugin: building with perl v5.35.2 or greater.
+	• AttRemover plugin: filenames would not be shown and corrupt
+	  the output
+	• OAuth2: Use the user-configured timeout
+	• 'save all' dialogues' logic.
+	• Make custom headers compliant with RFC 2822 § 3.6.
+	• correctly set modified flag after auto-save
+	• NNTP account's SMTP server wasn't used
+	• building with older GLibs
 
 For further details of the numbered bugs and RFEs listed above
 see https://www.claws-mail.org/bug/[BUG NUMBER]

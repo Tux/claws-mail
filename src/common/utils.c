@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2020 The Claws Mail Team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 The Claws Mail Team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -80,7 +80,6 @@
 #ifdef G_OS_WIN32
 #  include <direct.h>
 #  include <io.h>
-#  include <w32lib.h>
 #endif
 
 #include "utils.h"
@@ -93,21 +92,6 @@
 #define BUFFSIZE	8192
 
 static gboolean debug_mode = FALSE;
-
-GSList *slist_copy_deep(GSList *list, GCopyFunc func)
-{
-#if GLIB_CHECK_VERSION(2, 34, 0)
-	return g_slist_copy_deep(list, func, NULL);
-#else
-	GSList *res = g_slist_copy(list);
-	GSList *walk = res;
-	while (walk) {
-		walk->data = func(walk->data, NULL);
-		walk = walk->next;
-	}
-	return res;
-#endif
-}
 
 void list_free_strings_full(GList *list)
 {
@@ -198,9 +182,9 @@ gchar *to_human_readable(goffset size)
 	register int t = 0, r = 0;
 	if (b_format == NULL) {
 		b_format  = _("%dB");
-		kb_format = _("%d.%02dKB");
-		mb_format = _("%d.%02dMB");
-		gb_format = _("%.2fGB");
+		kb_format = _("%d.%02dKiB");
+		mb_format = _("%d.%02dMiB");
+		gb_format = _("%.2fGiB");
 	}
 
 	if (size < (goffset)1024) {
@@ -296,6 +280,21 @@ gchar *strcrchomp(gchar *str)
 		*(s - 1) = '\n';
 		*s = '\0';
 	}
+
+	return str;
+}
+
+/* truncates string at first CR (carriage return) or LF (line feed) */
+gchar *strcrlftrunc(gchar *str)
+{
+	gchar *p = NULL;
+
+	if ((str == NULL) || (!*str)) return str;
+
+	if ((p = strstr(str, "\r")) != NULL)
+		*p = '\0';
+	if ((p = strstr(str, "\n")) != NULL)
+		*p = '\0';
 
 	return str;
 }
@@ -1335,6 +1334,11 @@ gboolean is_uri_string(const gchar *str)
 	return (g_ascii_strncasecmp(str, "http://", 7) == 0 ||
 		g_ascii_strncasecmp(str, "https://", 8) == 0 ||
 		g_ascii_strncasecmp(str, "ftp://", 6) == 0 ||
+		g_ascii_strncasecmp(str, "ftps://", 7) == 0 ||
+		g_ascii_strncasecmp(str, "sftp://", 7) == 0 ||
+		g_ascii_strncasecmp(str, "ftp.", 4) == 0 ||
+		g_ascii_strncasecmp(str, "webcal://", 9) == 0 ||
+		g_ascii_strncasecmp(str, "webcals://", 10) == 0 ||
 		g_ascii_strncasecmp(str, "www.", 4) == 0);
 }
 
@@ -1348,6 +1352,14 @@ gchar *get_uri_path(const gchar *uri)
 		return (gchar *)(uri + 8);
 	else if (g_ascii_strncasecmp(uri, "ftp://", 6) == 0)
 		return (gchar *)(uri + 6);
+	else if (g_ascii_strncasecmp(uri, "ftps://", 7) == 0)
+		return (gchar *)(uri + 7);
+	else if (g_ascii_strncasecmp(uri, "sftp://", 7) == 0)
+		return (gchar *)(uri + 7);
+	else if (g_ascii_strncasecmp(uri, "webcal://", 9) == 0)
+		return (gchar *)(uri + 7);
+	else if (g_ascii_strncasecmp(uri, "webcals://", 10) == 0)
+		return (gchar *)(uri + 7);
 	else
 		return (gchar *)uri;
 }
@@ -1509,7 +1521,7 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 
 			if (tmp) {
 				if (!is_file_entry_regular(tmp)) {
-					g_warning("Refusing to insert '%s', not a regular file\n", tmp);
+					g_warning("refusing to insert '%s', not a regular file", tmp);
 				} else if (!g_file_get_contents(tmp, body, NULL, NULL)) {
 					g_warning("couldn't set insert file '%s' in body", value);
 				}
@@ -1528,7 +1540,6 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 					g_print("Refusing to attach '%s', potential private data leak\n",
 							tmp);
 					g_free(tmp);
-					g_free(my_att);
 					tmp = NULL;
 					break;
 				}
@@ -1541,6 +1552,8 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 				my_att[num_attach] = NULL;
 				*attach = my_att;
 			}
+            else
+				g_free(my_att);
 		} else if (inreplyto && !*inreplyto &&
 			   !g_ascii_strcasecmp(field, "in-reply-to")) {
 			*inreplyto = decode_uri_gdup(value);
@@ -2372,6 +2385,7 @@ gint remove_dir_recursive(const gchar *dir)
 
 			if ((ret = remove_dir_recursive(dir_name)) < 0) {
 				g_warning("can't remove directory: %s", dir_name);
+				g_dir_close(dp);
 				return ret;
 			}
 		} else {
@@ -2617,7 +2631,7 @@ gint execute_command_line(const gchar *cmdline, gboolean async,
 
 	cm_return_val_if_fail(cmdline != NULL, -1);
 
-	debug_print("execute_command_line(): executing: %s\n", cmdline?cmdline:"(null)");
+	debug_print("execute_command_line(): executing: %s\n", cmdline);
 
 	argv = strsplit_with_quote(cmdline, " ", 0);
 
@@ -2662,7 +2676,7 @@ FILE *get_command_output_stream(const char* cmdline)
 
 	/* turn the command-line string into an array */
 	if (!g_shell_parse_argv(cmdline, NULL, &argv, &err)) {
-		g_warning("could not parse command line from '%s': %s\n", cmdline, err->message);
+		g_warning("could not parse command line from '%s': %s", cmdline, err->message);
         g_error_free(err);
 		return NULL;
 	}
@@ -2671,7 +2685,7 @@ FILE *get_command_output_stream(const char* cmdline)
                                   NULL, NULL, &pid, NULL, &fd, NULL, &err)
         && err)
     {
-        g_warning("could not spawn '%s': %s\n", cmdline, err->message);
+        g_warning("could not spawn '%s': %s", cmdline, err->message);
         g_error_free(err);
 		g_strfreev(argv);
         return NULL;
@@ -2681,6 +2695,7 @@ FILE *get_command_output_stream(const char* cmdline)
 	return fdopen(fd, "r");
 }
 
+#ifndef G_OS_WIN32
 static gint is_unchanged_uri_char(char c)
 {
 	switch (c) {
@@ -2716,6 +2731,7 @@ static void encode_uri(gchar *encoded_uri, gint bufsize, const gchar *uri)
 	}
 	encoded_uri[k] = 0;
 }
+#endif
 
 gint open_uri(const gchar *uri, const gchar *cmdline)
 {
@@ -2953,6 +2969,24 @@ gboolean debug_get_mode(void)
 	return debug_mode;
 }
 
+#ifdef HAVE_VA_OPT
+void debug_print_real(const char *file, int line, const gchar *format, ...)
+{
+	va_list args;
+	gchar buf[BUFFSIZE];
+	gint prefix_len;
+
+	if (!debug_mode) return;
+
+	prefix_len = g_snprintf(buf, sizeof(buf), "%s:%d:", debug_srcname(file), line);
+
+	va_start(args, format);
+	g_vsnprintf(buf + prefix_len, sizeof(buf) - prefix_len, format, args);
+	va_end(args);
+
+	g_print("%s", buf);
+}
+#else
 void debug_print_real(const gchar *format, ...)
 {
 	va_list args;
@@ -2966,6 +3000,7 @@ void debug_print_real(const gchar *format, ...)
 
 	g_print("%s", buf);
 }
+#endif
 
 
 const char * debug_srcname(const char *file)
@@ -3457,19 +3492,6 @@ void g_auto_pointer_free(GAuto *auto_ptr)
 		G_PRINT_REF ("XXXX DEREF(%lx) -- REF (%d)\n", ref->pointer, ref->cnt);
 #endif
 	g_free(ptr);
-}
-
-void replace_returns(gchar *str)
-{
-	if (!str)
-		return;
-
-	while (strstr(str, "\n")) {
-		*strstr(str, "\n") = ' ';
-	}
-	while (strstr(str, "\r")) {
-		*strstr(str, "\r") = ' ';
-	}
 }
 
 /* get_uri_part() - retrieves a URI starting from scanpos.
@@ -3991,6 +4013,7 @@ void mailcap_update_default(const gchar *type, const gchar *command)
 		else {
 			if(claws_fputs(buf, outfp) == EOF) {
 				err = TRUE;
+				g_strfreev(parts);
 				break;
 			}
 		}
@@ -4327,7 +4350,7 @@ size_t fast_strftime(gchar *buf, gint buflen, const gchar *format, struct tm *lt
 				*curpos++ = '0'+(lt->tm_min % 10);
 				break;
 			case 's':
-				snprintf(subbuf, 64, "%lld", (long long)mktime(lt));
+				snprintf(subbuf, 64, "%" CM_TIME_FORMAT, mktime(lt));
 				len = strlen(subbuf); CHECK_SIZE();
 				strncpy2(curpos, subbuf, buflen - total_done);
 				break;
@@ -4422,25 +4445,6 @@ size_t fast_strftime(gchar *buf, gint buflen, const gchar *format, struct tm *lt
 #define WEXITSTATUS(x) (x)
 #endif
 
-GMutex *cm_mutex_new(void) {
-#if GLIB_CHECK_VERSION(2,32,0)
-	GMutex *m = g_new0(GMutex, 1);
-	g_mutex_init(m);
-	return m;
-#else
-	return g_mutex_new();
-#endif
-}
-
-void cm_mutex_free(GMutex *mutex) {
-#if GLIB_CHECK_VERSION(2,32,0)
-	g_mutex_clear(mutex);
-	g_free(mutex);
-#else
-	g_mutex_free(mutex);
-#endif
-}
-
 static gchar *canonical_list_to_file(GSList *list)
 {
 	GString *result = g_string_new(NULL);
@@ -4509,6 +4513,7 @@ static GSList *cm_split_path(const gchar *filename, int depth)
 		else if (!strcmp(path_parts[i], "..")) {
 			if (i == 0) {
 				errno =ENOTDIR;
+				g_strfreev(path_parts);
 				return NULL;
 			}
 			else /* Remove the last inserted element */
@@ -4623,45 +4628,11 @@ guchar *g_base64_decode_zero(const gchar *text, gsize *out_len)
 	g_free(tmp);
 
 	if (strlen(out) != *out_len) {
-		g_warning ("strlen(out) %"G_GSIZE_FORMAT" != *out_len %"G_GSIZE_FORMAT, strlen(out), *out_len);
+		g_warning("strlen(out) %"G_GSIZE_FORMAT" != *out_len %"G_GSIZE_FORMAT, strlen(out), *out_len);
 	}
 
 	return out;
 }
-
-#if !GLIB_CHECK_VERSION(2, 30, 0)
-/**
- * g_utf8_substring:
- * @str: a UTF-8 encoded string
- * @start_pos: a character offset within @str
- * @end_pos: another character offset within @str
- *
- * Copies a substring out of a UTF-8 encoded string.
- * The substring will contain @end_pos - @start_pos
- * characters.
- *
- * Returns: a newly allocated copy of the requested
- *     substring. Free with g_free() when no longer needed.
- *
- * Since: GLIB 2.30
- */
-gchar *
-g_utf8_substring (const gchar *str,
-				  glong 	   start_pos,
-				  glong 	   end_pos)
-{
-  gchar *start, *end, *out;
-
-  start = g_utf8_offset_to_pointer (str, start_pos);
-  end = g_utf8_offset_to_pointer (start, end_pos - start_pos);
-
-  out = g_malloc (end - start + 1);
-  memcpy (out, start, end - start);
-  out[end - start] = 0;
-
-  return out;
-}
-#endif
 
 /* Attempts to read count bytes from a PRNG into memory area starting at buf.
  * It is up to the caller to make sure there is at least count bytes

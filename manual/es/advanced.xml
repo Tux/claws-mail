@@ -56,7 +56,7 @@
       </example>
       <example>
         <title>
-	Gestión de spam usando <ulink url="http://bogofilter.sourceforge.net/"
+	Gestión de spam usando <ulink url="https://bogofilter.sourceforge.io/"
 	>Bogofilter</ulink>
 	</title>
 	<variablelist>
@@ -88,18 +88,18 @@
     	</variablelist>
       </example>
     <example>
-      <title>Buscar en Google usando un script externo</title>
+      <title>Buscar en DuckDuckGo usando un script externo</title>
 	<variablelist>
 	  <varlistentry>
 	    <term>
-	Nombre del menú: <emphasis>Buscar/Google</emphasis> 
-	Línea de orden: <command>|/ruta/a/google_search.pl</command>
+	Nombre del menú: <emphasis>Buscar/DuckDuckGo</emphasis>
+	Línea de orden: <command>|/ruta/a/ddg_search.pl</command>
 	    </term>
 	    <listitem>
 	      <para>
-	Busca en Google el texto seleccionado actualmente 
+	Busca en DuckDuckGo el texto seleccionado actualmente
 	(<emphasis>|</emphasis>) usando un script externo <emphasis><ulink 
-	url="https://www.claws-mail.org/tools.php">google_search.pl</ulink>
+	url="https://www.claws-mail.org/tools.php">ddg_search.pl</ulink>
 	</emphasis>.
 	      </para>
 	    </listitem>
@@ -619,6 +619,16 @@
 	</listitem>
       </varlistentry>
       <varlistentry>
+	<term><literal>bold_marked</literal></term>
+	<listitem>
+	  <para>
+    Mostrar los mensajes marcados utilizando negrita en la lista de
+    mensajes si está a '1'. Con '0' (predeterminado) se usará la
+    tipografía normal.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
 	<term><literal>bold_unread</literal></term>
 	<listitem>
 	  <para>
@@ -855,6 +865,18 @@
     cuando la búsqueda está activa y cuando hay un error de sintaxis.
     Los valores predeterminados son '#000000' (negro), '#f5f6be' (amarillo
     pálido), '#000000' (negro) y '#ff7070' (rojo pálido) respectivamente.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><literal>qs_press_timeout</literal></term>
+	<listitem>
+	  <para>
+    Tiempo de espera (en ms) para la búsqueda preliminar al teclear en
+    la búsqueda rápida : cuando está escribiendo en la entrada de la
+    búsqueda rápida en modo «mientras teclea», es el intervalo entre dos
+    pulsaciones de tecla a partir del cual se realiza la búsqueda. El
+    valor predeterminado son 500.
 	  </para>
 	</listitem>
       </varlistentry>

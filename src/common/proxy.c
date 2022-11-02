@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2018 the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -67,7 +67,7 @@ gint proxy_connect(SockInfo *sock, const gchar *hostname, gushort port,
 	} else if (proxy_info->proxy_type == PROXY_SOCKS4) {
 		return socks4_connect(sock, hostname, port);
 	} else {
-		g_warning("proxy_connect: unknown SOCKS type: %d\n",
+		g_warning("proxy_connect: unknown SOCKS type: %d",
 			  proxy_info->proxy_type);
 	}
 

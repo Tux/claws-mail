@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2020 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,9 +31,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
-#ifdef WIN32
-#include <w32lib.h>
-#endif
 
 #include "alertpanel.h"
 #include "folder.h"
@@ -417,7 +414,7 @@ void folder_item_remove(FolderItem *item)
 {
 	GNode *node, *start_node;
 	FolderUpdateData hookdata;
-	gchar *tags_file = NULL, *tags_dir = NULL;
+	gchar *tags_file = NULL;
 
 	cm_return_if_fail(item != NULL);
 	cm_return_if_fail(item->folder != NULL);
@@ -444,15 +441,19 @@ void folder_item_remove(FolderItem *item)
 		msgcache_destroy(item->cache);
 		item->cache = NULL;
 	}
-	tags_file = folder_item_get_tags_file(item);
-	if (tags_file)
-		claws_unlink(tags_file);
-	tags_dir = g_path_get_dirname(tags_file);
-	if (tags_dir)
-		rmdir(tags_dir);
 
+	tags_file = folder_item_get_tags_file(item);
+	if (tags_file) {
+		gchar *tags_dir;
+
+		claws_unlink(tags_file);
+
+		tags_dir = g_path_get_dirname(tags_file);
+		if (tags_dir)
+			rmdir(tags_dir);
+		g_free(tags_dir);
+	}
 	g_free(tags_file);
-	g_free(tags_dir);
 
 	hookdata.folder = item->folder;
 	hookdata.update_flags = FOLDER_TREE_CHANGED | FOLDER_REMOVE_FOLDERITEM;
@@ -902,7 +903,7 @@ void folder_write_list(void)
 
 	if (xml_file_put_xml_decl(pfile->fp) < 0) {
 		prefs_file_close_revert(pfile);
-		g_warning("failed to start write folder list.");
+		g_warning("failed to start write folder list");
 		return;		
 	}
 	tag = xml_tag_new("folderlist");
@@ -930,9 +931,9 @@ void folder_write_list(void)
 
 	if (xml_write_tree(rootnode, pfile->fp) < 0) {
 		prefs_file_close_revert(pfile);
-		g_warning("failed to write folder list.");
+		g_warning("failed to write folder list");
 	} else if (prefs_file_close(pfile) < 0) {
-		g_warning("failed to write folder list.");
+		g_warning("failed to write folder list");
 	}
 	xml_free_tree(rootnode);
 }
@@ -1878,7 +1879,7 @@ void folder_set_missing_folders(void)
 			continue;
 
 		if (folder->klass->create_tree(folder) < 0) {
-			g_warning("%s: can't create the folder tree.",
+			g_warning("%s: can't create the folder tree",
 				  LOCAL_FOLDER(folder)->rootpath);
 			continue;
 		}
@@ -3368,7 +3369,7 @@ gint folder_item_move_to(FolderItem *src, FolderItem *dest, FolderItem **new_ite
 {
 	FolderItem *tmp = folder_item_parent(dest);
 	gchar * src_identifier, * dst_identifier;
-	gchar * phys_srcpath, * phys_dstpath, *tmppath;
+	gchar * phys_srcpath, * phys_dstpath, *tmppath, *tmpname;
 
 	while (tmp) {
 		if (tmp == src) {
@@ -3390,35 +3391,43 @@ gint folder_item_move_to(FolderItem *src, FolderItem *dest, FolderItem **new_ite
 
 	if (src_identifier == NULL || dst_identifier == NULL) {
 		debug_print("Can't get identifiers\n");
+		if (src_identifier)
+			g_free(src_identifier);
+		if (dst_identifier)
+			g_free(dst_identifier);
 		return F_MOVE_FAILED;
 	}
 
 	if (src->folder != dest->folder && !copy) {
+		g_free(src_identifier);
+		g_free(dst_identifier);
 		return F_MOVE_FAILED_DEST_OUTSIDE_MAILBOX;
 	}
+	g_free(src_identifier);
+	g_free(dst_identifier);
 
 	phys_srcpath = folder_item_get_path(src);
 	tmppath = folder_item_get_path(dest);
+	tmpname = g_path_get_basename(phys_srcpath);
 	phys_dstpath = g_strconcat(tmppath,
 		       G_DIR_SEPARATOR_S,
-		       g_path_get_basename(phys_srcpath),
+		       tmpname,
 		       NULL);
+	g_free(tmpname);
 	g_free(tmppath);
 
 	if (folder_item_parent(src) == dest || src == dest) {
-		g_free(src_identifier);
-		g_free(dst_identifier);
 		g_free(phys_srcpath);
 		g_free(phys_dstpath);
 		return F_MOVE_FAILED_DEST_IS_PARENT;
 	}
 	debug_print("moving \"%s\" to \"%s\"\n", phys_srcpath, phys_dstpath);
 	if ((tmp = folder_item_move_recursive(src, dest, copy)) == NULL) {
+		g_free(phys_srcpath);
+		g_free(phys_dstpath);
 		return F_MOVE_FAILED;
 	}
 	
-	g_free(src_identifier);
-	g_free(dst_identifier);
 	g_free(phys_srcpath);
 	g_free(phys_dstpath);
 
@@ -4407,8 +4416,11 @@ static void folder_get_persist_prefs_recursive(GNode *node, GHashTable *pptable)
 	if (item->path) {
 		id = folder_item_get_identifier(item);
 		pp = g_new0(PersistPrefs, 1);
-		cm_return_if_fail(pp != NULL);
-		pp->collapsed = item->collapsed;
+		if (!pp) {
+			g_free(id);
+			return;
+		}
+   		pp->collapsed = item->collapsed;
 		pp->thread_collapsed = item->thread_collapsed;
 		pp->threaded  = item->threaded;
 		pp->ret_rcpt  = item->ret_rcpt;	

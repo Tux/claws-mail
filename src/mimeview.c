@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2015 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -78,9 +78,9 @@ static void mimeview_change_view_type		(MimeView	*mimeview,
 static gchar *mimeview_get_filename_for_part	(MimeInfo	*partinfo,
 						 const gchar	*basedir,
 						 gint		 number);
-static gboolean mimeview_write_part		(const gchar	*filename,
-						 MimeInfo	*partinfo,
-						 gboolean	 handle_error);
+static gint mimeview_write_part		(const gchar	*filename,
+					 MimeInfo	*partinfo,
+					 gboolean	 handle_error);
 
 static void mimeview_selected		(GtkTreeSelection	*selection,
 					 MimeView	*mimeview);
@@ -279,12 +279,11 @@ MimeView *mimeview_create(MainWindow *mainwin)
 	GtkWidget *mime_toggle;
 	GtkWidget *icon_mainbox;
 	GtkWidget *icon_scroll;
-	GtkWidget *icon_vbox;
+	GtkWidget *icon_grid;
 	GtkWidget *arrow;
 	GtkWidget *scrollbutton;
 	GtkWidget *hbox;
 	NoticeView *siginfoview;
-	GtkRequisition r;
 	GtkTreeStore *model;
 	GtkCellRenderer *renderer;
 	GtkTreeViewColumn *column;
@@ -294,7 +293,8 @@ MimeView *mimeview_create(MainWindow *mainwin)
 	gint cols;
 
 	if (!hand_cursor)
-		hand_cursor = gdk_cursor_new(GDK_HAND2);
+		hand_cursor = gdk_cursor_new_for_display(
+				gtk_widget_get_display(mainwin->window), GDK_HAND2);
 
 	debug_print("Creating MIME view...\n");
 	mimeview = g_new0(MimeView, 1);
@@ -362,17 +362,21 @@ MimeView *mimeview_create(MainWindow *mainwin)
 			 G_CALLBACK(mimeview_drag_data_get), mimeview);
 
 	mime_notebook = gtk_notebook_new();
-        gtk_widget_show(mime_notebook);
-        gtk_widget_set_can_focus(mime_notebook, FALSE);
-        gtk_notebook_set_show_tabs(GTK_NOTEBOOK(mime_notebook), FALSE);
-        gtk_notebook_set_show_border(GTK_NOTEBOOK(mime_notebook), FALSE);
-	
-	icon_vbox = gtk_vbox_new(FALSE, 2);
-	gtk_widget_show(icon_vbox);
+	gtk_widget_set_name(GTK_WIDGET(mime_notebook), "mime_notebook");
+	gtk_widget_show(mime_notebook);
+	gtk_widget_set_can_focus(mime_notebook, FALSE);
+	gtk_notebook_set_show_tabs(GTK_NOTEBOOK(mime_notebook), FALSE);
+	gtk_notebook_set_show_border(GTK_NOTEBOOK(mime_notebook), FALSE);
+
+	icon_grid = gtk_grid_new();
+	gtk_orientable_set_orientation(GTK_ORIENTABLE(icon_grid),
+			GTK_ORIENTATION_VERTICAL);
+	gtk_grid_set_row_spacing(GTK_GRID(icon_grid), 0);
+	gtk_widget_show(icon_grid);
 	icon_scroll = gtk_layout_new(NULL, NULL);
 	gtk_widget_show(icon_scroll);
-	gtk_layout_put(GTK_LAYOUT(icon_scroll), icon_vbox, 0, 0);
-	scrollbutton = gtk_vscrollbutton_new(gtk_layout_get_vadjustment(GTK_LAYOUT(icon_scroll)));
+	gtk_layout_put(GTK_LAYOUT(icon_scroll), icon_grid, 0, 0);
+	scrollbutton = gtk_vscrollbutton_new(gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(icon_scroll)));
 	gtk_widget_show(scrollbutton);
 
 	g_signal_connect(G_OBJECT(icon_scroll), "scroll_event",
@@ -391,14 +395,14 @@ MimeView *mimeview_create(MainWindow *mainwin)
 	gtk_container_set_border_width(GTK_CONTAINER(mime_toggle), 2);
 	gtk_widget_show(mime_toggle);
 	mimeview->ctree_mode = FALSE;
-	arrow = gtk_arrow_new(GTK_ARROW_LEFT, GTK_SHADOW_NONE);
+	arrow = gtk_image_new_from_icon_name("pan-start-symbolic", GTK_ICON_SIZE_MENU);
 	gtk_widget_show(arrow);
-	gtk_widget_size_request(arrow, &r);
 	gtk_container_add(GTK_CONTAINER(mime_toggle), arrow);
 	g_signal_connect(G_OBJECT(mime_toggle), "button_release_event", 
 			 G_CALLBACK(mime_toggle_button_cb), mimeview);
 
-	icon_mainbox = gtk_vbox_new(FALSE, 0);
+	icon_mainbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_widget_set_name(GTK_WIDGET(icon_mainbox), "mimeview_icon_mainbox");
 	gtk_widget_show(icon_mainbox);
 	gtk_widget_set_size_request(icon_mainbox, 32, -1);
 	gtk_box_pack_start(GTK_BOX(icon_mainbox), mime_toggle, FALSE, FALSE, 0);
@@ -407,7 +411,8 @@ MimeView *mimeview_create(MainWindow *mainwin)
 	g_signal_connect(G_OBJECT(icon_mainbox), "size_allocate", 
 			 G_CALLBACK(icon_scroll_size_allocate_cb), mimeview);
 	
-	ctree_mainbox = gtk_hbox_new(FALSE, 0);	
+	ctree_mainbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);	
+	gtk_widget_set_name(GTK_WIDGET(ctree_mainbox), "mimeview_ctree_mainbox");
 	gtk_box_pack_start(GTK_BOX(ctree_mainbox), scrolledwin, TRUE, TRUE, 0);
 	g_signal_connect(G_OBJECT(ctree_mainbox), "size_allocate", 
 			 G_CALLBACK(ctree_size_allocate_cb), mimeview);
@@ -454,20 +459,22 @@ MimeView *mimeview_create(MainWindow *mainwin)
 				gtk_ui_manager_get_widget(mimeview->ui_manager, "/Menus/MimeView")) );
 
 
-	vbox = gtk_vbox_new(FALSE, 0);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_widget_show(vbox);
 	siginfoview = noticeview_create(mainwin);
+	gtk_widget_set_name(GTK_WIDGET(siginfoview->vgrid), "siginfoview");
 	noticeview_hide(siginfoview);
 	noticeview_set_icon_clickable(siginfoview, TRUE);
 	gtk_box_pack_start(GTK_BOX(vbox), mime_notebook, TRUE, TRUE, 0);
 	gtk_box_pack_end(GTK_BOX(vbox), GTK_WIDGET_PTR(siginfoview), FALSE, FALSE, 0);
 
-	paned = gtk_vpaned_new();
+	paned = gtk_paned_new(GTK_ORIENTATION_VERTICAL);
 	gtk_widget_show(paned);
 	gtk_paned_pack1(GTK_PANED(paned), ctree_mainbox, FALSE, TRUE);
 	gtk_paned_pack2(GTK_PANED(paned), vbox, TRUE, TRUE);
 	
-	hbox = gtk_hbox_new(FALSE, 0);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_widget_set_name(GTK_WIDGET(hbox), "mimeview");
 	gtk_box_pack_start(GTK_BOX(hbox), paned, TRUE, TRUE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), icon_mainbox, FALSE, FALSE, 0);
 
@@ -485,13 +492,14 @@ MimeView *mimeview_create(MainWindow *mainwin)
 	mimeview->type          = -1;
 	mimeview->ctree_mainbox = ctree_mainbox;
 	mimeview->icon_scroll   = icon_scroll;
-	mimeview->icon_vbox     = icon_vbox;
+	mimeview->icon_grid     = icon_grid;
 	mimeview->icon_mainbox  = icon_mainbox;
 	mimeview->icon_count    = 0;
 	mimeview->mainwin       = mainwin;
 	mimeview->mime_toggle   = mime_toggle;
 	mimeview->siginfoview	= siginfoview;
 	mimeview->scrollbutton  = scrollbutton;
+	mimeview->arrow		= arrow;
 	mimeview->target_list	= gtk_target_list_new(mimeview_mime_types, 1); 
 	
 	mimeviews = g_slist_prepend(mimeviews, mimeview);
@@ -549,26 +557,11 @@ void mimeview_show_message(MimeView *mimeview, MimeInfo *mimeinfo,
 					  mimeview_selected, mimeview);
 }
 
-#ifdef USE_PTHREAD
-static void mimeview_check_sig_cancel_now(MimeView *mimeview);
-#endif
-
 static void mimeview_free_mimeinfo(MimeView *mimeview)
 {
-	gboolean defer = FALSE;
-#ifdef USE_PTHREAD
-	defer = (mimeview->check_data != NULL);
-	if (defer)
-		mimeview->check_data->free_after_use = TRUE;
-#endif
-	if (mimeview->mimeinfo != NULL && !defer) {
+	if (mimeview->mimeinfo != NULL) {
 		procmime_mimeinfo_free_all(&mimeview->mimeinfo);
 		mimeview->mimeinfo = NULL;
-	} else if (defer) {
-#ifdef USE_PTHREAD
-		debug_print("deferring free(mimeinfo) and cancelling check\n");
-		mimeview_check_sig_cancel_now(mimeview);
-#endif
 	}
 }
 
@@ -583,20 +576,19 @@ void mimeview_destroy(MimeView *mimeview)
 	g_slist_free(mimeview->viewers);
 	gtk_target_list_unref(mimeview->target_list);
 
-#ifdef USE_PTHREAD
-	if (mimeview->check_data) {
-		mimeview->check_data->destroy_mimeview = TRUE;
-		debug_print("deferring destroy\n");
-	} else 
-#endif
-	{
-		mimeview_free_mimeinfo(mimeview);
-		gtk_tree_path_free(mimeview->opened);
-		g_free(mimeview->file);
-		g_free(mimeview);
-		mimeviews = g_slist_remove(mimeviews, mimeview);
+	if (mimeview->sig_check_timeout_tag != 0)
+		g_source_remove(mimeview->sig_check_timeout_tag);
+	if (mimeview->sig_check_cancellable != NULL) {
+		/* Set last_sig_check_task to NULL to discard results in async_cb */
+		mimeview->siginfo->last_sig_check_task = NULL;
+		g_cancellable_cancel(mimeview->sig_check_cancellable);
+		g_object_unref(mimeview->sig_check_cancellable);
 	}
-	
+	mimeview_free_mimeinfo(mimeview);
+	gtk_tree_path_free(mimeview->opened);
+	g_free(mimeview->file);
+	g_free(mimeview);
+	mimeviews = g_slist_remove(mimeviews, mimeview);
 }
 
 MimeInfo *mimeview_get_selected_part(MimeView *mimeview)
@@ -990,6 +982,19 @@ void mimeview_clear(MimeView *mimeview)
 	if (g_slist_find(mimeviews, mimeview) == NULL)
 		return;
 	
+	if (mimeview->sig_check_timeout_tag != 0) {
+		g_source_remove(mimeview->sig_check_timeout_tag);
+		mimeview->sig_check_timeout_tag = 0;
+	}
+
+	if (mimeview->sig_check_cancellable != NULL) {
+		/* Set last_sig_check_task to NULL to discard results in async_cb */
+		mimeview->siginfo->last_sig_check_task = NULL;
+		g_cancellable_cancel(mimeview->sig_check_cancellable);
+		g_object_unref(mimeview->sig_check_cancellable);
+		mimeview->sig_check_cancellable = NULL;
+	}
+
 	noticeview_hide(mimeview->siginfoview);
 
 	model = gtk_tree_view_get_model(GTK_TREE_VIEW(mimeview->ctree));
@@ -1027,21 +1032,20 @@ gchar * get_message_check_signature_shortcut(MessageView *messageview) {
 static void check_signature_cb(GtkWidget *widget, gpointer user_data);
 static void display_full_info_cb(GtkWidget *widget, gpointer user_data);
 
-static void update_signature_noticeview(MimeView *mimeview, MimeInfo *mimeinfo, 
-					gboolean special, SignatureStatus code)
+static void update_signature_noticeview(MimeView *mimeview, gboolean special, SignatureStatus code)
 {
 	gchar *text = NULL, *button_text = NULL;
 	void  *func = NULL;
 	StockPixmap icon = STOCK_PIXMAP_PRIVACY_SIGNED;
 	SignatureStatus mycode = SIGNATURE_UNCHECKED;
 	
-	cm_return_if_fail(mimeview != NULL);
-	cm_return_if_fail(mimeinfo != NULL);
-	
+	if (mimeview == NULL || mimeview->siginfo == NULL)
+		g_error("bad call to update noticeview");
+
 	if (special)
 		mycode = code;
-	else 
-		mycode = privacy_mimeinfo_get_sig_status(mimeinfo);
+	else
+		mycode = privacy_mimeinfo_get_sig_status(mimeview->siginfo);
 
 	switch (mycode) {
 	case SIGNATURE_UNCHECKED:
@@ -1069,6 +1073,7 @@ static void update_signature_noticeview(MimeView *mimeview, MimeInfo *mimeinfo,
 		func = display_full_info_cb;
 		icon = STOCK_PIXMAP_PRIVACY_FAILED;
 		break;
+	case SIGNATURE_CHECK_ERROR:
 	case SIGNATURE_CHECK_FAILED:
 	case SIGNATURE_CHECK_TIMEOUT:
 		button_text = _("Check again");
@@ -1078,19 +1083,17 @@ static void update_signature_noticeview(MimeView *mimeview, MimeInfo *mimeinfo,
 	default:
 		break;
 	}
+
 	if (mycode == SIGNATURE_UNCHECKED) {
-		gchar *tmp = privacy_mimeinfo_sig_info_short(mimeinfo);
+		gchar *tmp = privacy_mimeinfo_get_sig_info(mimeview->siginfo, FALSE);
 		gchar *shortcut = get_message_check_signature_shortcut(mimeview->messageview);
 
 		if (*shortcut == '\0')
 			text = g_strdup_printf(_("%s Click the icon to check it."), tmp);
 		else
-			text = g_strdup_printf(_("%s Click the icon or hit '%s' to check it."),
-				tmp, shortcut);
-		g_free(tmp);
+			text = g_strdup_printf(_("%s Click the icon or hit '%s' to check it."), tmp, shortcut);
+
 		g_free(shortcut);
-	} else if (mycode != SIGNATURE_CHECK_TIMEOUT) {
-		text = privacy_mimeinfo_sig_info_short(mimeinfo);
 	} else if (mycode == SIGNATURE_CHECK_TIMEOUT) {
 		gchar *shortcut = get_message_check_signature_shortcut(mimeview->messageview);
 
@@ -1098,13 +1101,25 @@ static void update_signature_noticeview(MimeView *mimeview, MimeInfo *mimeinfo,
 			text = g_strdup(_("Timeout checking the signature. Click the icon to try again."));
 		else
 			text = g_strdup_printf(_("Timeout checking the signature. Click the icon or hit '%s' to try again."), shortcut);
+
 		g_free(shortcut);
+	} else if (mycode == SIGNATURE_CHECK_ERROR) {
+		gchar *shortcut = get_message_check_signature_shortcut(mimeview->messageview);
+
+		if (*shortcut == '\0')
+			text = g_strdup(_("Error checking the signature. Click the icon to try again."));
+		else
+			text = g_strdup_printf(_("Error checking the signature. Click the icon or hit '%s' to try again."), shortcut);
+
+		g_free(shortcut);
+	} else {
+		text = g_strdup(privacy_mimeinfo_get_sig_info(mimeview->siginfo, FALSE));
 	}
 
 	noticeview_set_text(mimeview->siginfoview, text);
 	gtk_label_set_selectable(GTK_LABEL(mimeview->siginfoview->text), TRUE);
-
 	g_free(text);
+
 	noticeview_set_button_text(mimeview->siginfoview, NULL);
 	noticeview_set_button_press_callback(
 		mimeview->siginfoview,
@@ -1117,242 +1132,130 @@ static void update_signature_noticeview(MimeView *mimeview, MimeInfo *mimeinfo,
 	icon_list_create(mimeview, mimeview->mimeinfo);
 }
 
-#ifdef USE_PTHREAD
-
-/* reset all thread stuff, and do the cleanups we've been left to do */
-static void mimeview_check_data_reset(MimeView *mimeview)
+static void check_signature_async_cb(GObject *source_object,
+	GAsyncResult *async_result,
+	gpointer user_data)
 {
-	gboolean must_free;
-	gboolean must_destroy;
+	GTask *task = G_TASK(async_result);
+	GCancellable *cancellable;
+	MimeView *mimeview = (MimeView *)user_data;
+	gboolean cancelled;
+	SigCheckTaskResult *result;
+	GError *error = NULL;
 
-	if (!mimeview->check_data)
+	if (mimeview->siginfo == NULL) {
+		debug_print("discarding stale sig check task result task:%p\n", task);
 		return;
-
-	must_free = mimeview->check_data->free_after_use;
-	must_destroy = mimeview->check_data->destroy_mimeview;
-	
-	if (mimeview->check_data->cancel_th_init) {
-		debug_print("killing canceller thread\n");
-		mimeview->check_data->cancel_th_init = FALSE;
-		pthread_cancel(mimeview->check_data->cancel_th);
-	}
-
-	if (must_free) {
-		debug_print("freeing deferred mimeinfo\n");
-		procmime_mimeinfo_free_all(&mimeview->check_data->siginfo);
-	}
-
-	g_free(mimeview->check_data);
-	mimeview->check_data = NULL;
-
-	if (must_destroy) {
-		debug_print("freeing deferred mimeview\n");
-		mimeview_free_mimeinfo(mimeview);
-		gtk_tree_path_free(mimeview->opened);
-		g_free(mimeview->file);
-		g_free(mimeview);
-		mimeviews = g_slist_remove(mimeviews, mimeview);
-	}
-}
-
-/* GUI update once the checker thread is done or killed */
-static gboolean mimeview_check_sig_thread_cb(void *data)
-{
-	MimeView *mimeview = (MimeView *) data;
-	MimeInfo *mimeinfo = mimeview->siginfo;
-
-	debug_print("mimeview_check_sig_thread_cb\n");
-	
-	if (mimeinfo == NULL) {
-		/* message changed !? */
-		g_warning("no more siginfo!");
-		goto end;
-	}
-	
-	if (!mimeview->check_data) {
-		g_warning("nothing to check");
-		return FALSE;
-	}
-
-	if (mimeview->check_data->siginfo != mimeinfo) {
-		/* message changed !? */
-		g_warning("different siginfo!");
-		goto end;
-	}
-
-	if (mimeview->check_data->destroy_mimeview ||
-	    mimeview->check_data->free_after_use) {
-	    	debug_print("not bothering, we're changing message\n"); 
-		goto end;
-	}
-	
-	/* update status */
-	if (mimeview->check_data->timeout) 
-		update_signature_noticeview(mimeview, mimeview->siginfo, 
-			TRUE, SIGNATURE_CHECK_TIMEOUT);
-	else
-		update_signature_noticeview(mimeview, mimeview->siginfo, 
-			FALSE, 0);
-
-end:
-	mimeview_check_data_reset(mimeview);
-	return FALSE;
-}
-
-/* sig checker thread */
-static void *mimeview_check_sig_worker_thread(void *data)
-{
-	MimeView *mimeview = (MimeView *)data;
-	MimeInfo *mimeinfo = mimeview->siginfo;
-	
-	debug_print("checking...\n");
-
-	if (!mimeview->check_data)
-		return NULL;
-
-	if (mimeinfo && mimeinfo == mimeview->check_data->siginfo) {
-		privacy_mimeinfo_check_signature(mimeinfo);
-		if (mimeview->check_data && mimeview->check_data->cancel_th_init) {
-			mimeview->check_data->cancel_th_init = FALSE;
-			pthread_cancel(mimeview->check_data->cancel_th);
-		}
-	} else {
-		/* that's strange! we changed message without 
-		 * getting killed. */
-		g_warning("different siginfo!");
-		mimeview_check_data_reset(mimeview);
-		return NULL;
-	}
-
-	/* use g_timeout so that GUI updates is done from the
-	 * correct thread */
-	g_timeout_add(0,mimeview_check_sig_thread_cb,mimeview);
-	
-	return NULL;
-}
-
-/* killer thread - acts when the checker didn't work fast
- * enough. */
-static void *mimeview_check_sig_cancel_thread(void *data)
-{
-	MimeView *mimeview = (MimeView *)data;
-	
-	if (!mimeview->check_data)
-		return NULL; /* nothing to kill ! */
-
-	/* wait for a few seconds... */
-	debug_print("waiting a while\n");
-
-	g_usleep(5 * 1000 * 1000);
-	
-	if (!mimeview->check_data)
-		return NULL; /* nothing to kill, it's done in time :) */
-	
-	/* too late, go away checker thread */
-	debug_print("killing checker thread\n");
-	if (mimeview->check_data->th_init) {
-		mimeview->check_data->th_init = FALSE;
-		pthread_cancel(mimeview->check_data->th);
-	}
-
-	/* tell upstream it was a timeout */
-	mimeview->check_data->timeout = TRUE;
-	/* use g_timeout so that GUI updates is done from the
-	 * correct thread */
-	g_timeout_add(0,mimeview_check_sig_thread_cb,mimeview);
-
-	return NULL;
-}
-
-/* get rid of the checker thread right now - used when changing the
- * displayed message for example. */
-static void mimeview_check_sig_cancel_now(MimeView *mimeview)
-{
-	if (!mimeview->check_data)
-		return;
-	debug_print("killing checker thread NOW\n");
-	if (mimeview->check_data->th_init) {
-		mimeview->check_data->th_init = FALSE;
-		pthread_cancel(mimeview->check_data->th);
-	}
-
-	/* tell upstream it was a timeout */
-	mimeview->check_data->timeout = TRUE;
-	mimeview_check_sig_thread_cb(mimeview);
-	return;
-}
-
-/* creates a thread to check the signature, and a second one
- * to kill the first one after a timeout */
-static void mimeview_check_sig_in_thread(MimeView *mimeview)
-{
-	pthread_t th, th2;
-	pthread_attr_t detach, detach2;
-	
-	if (mimeview->check_data) {
-		g_warning("already checking it");
-		return;
-	}
-	
-	mimeview->check_data = g_new0(SigCheckData, 1);
-	mimeview->check_data->siginfo = mimeview->siginfo;
-	debug_print("creating thread\n");
-
-	/* init thread attributes and create the checker thread */
-	if (pthread_attr_init(&detach) != 0 ||
-	    pthread_attr_setdetachstate(&detach, PTHREAD_CREATE_DETACHED) != 0 ||
-	    pthread_attr_init(&detach2) != 0 ||
-	    pthread_attr_setdetachstate(&detach2, PTHREAD_CREATE_DETACHED) != 0 ||
-	    pthread_create(&th, &detach, 
-			mimeview_check_sig_worker_thread, 
-			mimeview) != 0) {
-		/* arh. We'll do it synchronously. */
-		g_warning("can't create checked thread");
-		g_free(mimeview->check_data);
-		mimeview->check_data = NULL;
+	} else if (task != mimeview->siginfo->last_sig_check_task) {
+		debug_print("discarding stale sig check task result last_task:%p task:%p\n",
+			mimeview->siginfo->last_sig_check_task, task);
 		return;
 	} else {
-		mimeview->check_data->th = th;
-		mimeview->check_data->th_init = TRUE;
+		debug_print("using sig check task result task:%p\n", task);
+		mimeview->siginfo->last_sig_check_task = NULL;
 	}
 
-	/* create the killer thread */
-	if (pthread_create(&th2, &detach2, 
-			mimeview_check_sig_cancel_thread, 
-			mimeview) != 0) {
-		g_warning("can't create killer thread");
-		g_free(mimeview->check_data);
-		mimeview->check_data = NULL;
+	cancellable = g_task_get_cancellable(task);
+	cancelled = g_cancellable_set_error_if_cancelled(cancellable, &error);
+	if (cancelled) {
+		debug_print("sig check task was cancelled: task:%p GError: domain:%s code:%d message:\"%s\"\n",
+			task, g_quark_to_string(error->domain), error->code, error->message);
+		g_error_free(error);
+		update_signature_noticeview(mimeview, TRUE, SIGNATURE_CHECK_TIMEOUT);
 		return;
 	} else {
-		mimeview->check_data->cancel_th = th2;
-		mimeview->check_data->cancel_th_init = TRUE;
+		if (mimeview->sig_check_cancellable == NULL)
+			g_error("bad cancellable");
+		if (mimeview->sig_check_timeout_tag == 0)
+			g_error("bad cancel source tag");
+
+		g_source_remove(mimeview->sig_check_timeout_tag);
+		mimeview->sig_check_timeout_tag = 0;
+		g_object_unref(mimeview->sig_check_cancellable);
+		mimeview->sig_check_cancellable = NULL;
 	}
+
+	result = g_task_propagate_pointer(task, &error);
+
+	if (mimeview->siginfo->sig_data) {
+		privacy_free_signature_data(mimeview->siginfo->sig_data);
+		mimeview->siginfo->sig_data = NULL;
+	}
+
+	if (result == NULL) {
+		debug_print("sig check task propagated NULL task:%p GError: domain:%s code:%d message:\"%s\"\n",
+			task, g_quark_to_string(error->domain), error->code, error->message);
+		g_error_free(error);
+		update_signature_noticeview(mimeview, TRUE, SIGNATURE_CHECK_ERROR);
+		return;
+	}
+
+	mimeview->siginfo->sig_data = result->sig_data;
+	update_signature_noticeview(mimeview, FALSE, 0);
+
+	if (result->newinfo) {
+		g_warning("Check sig task returned an unexpected new MimeInfo");
+		procmime_mimeinfo_free_all(&result->newinfo);
+	}
+
+	g_free(result);
 }
-#endif
+
+gboolean mimeview_check_sig_timeout(gpointer user_data)
+{
+	MimeView *mimeview = (MimeView *)user_data;
+	GCancellable *cancellable = mimeview->sig_check_cancellable;
+
+	mimeview->sig_check_timeout_tag = 0;
+
+	if (cancellable == NULL) {
+		return G_SOURCE_REMOVE;
+	}
+
+	mimeview->sig_check_cancellable = NULL;
+	g_cancellable_cancel(cancellable);
+	g_object_unref(cancellable);
+
+	return G_SOURCE_REMOVE;
+}
 
 static void check_signature_cb(GtkWidget *widget, gpointer user_data)
 {
 	MimeView *mimeview = (MimeView *) user_data;
 	MimeInfo *mimeinfo = mimeview->siginfo;
+	gint ret;
 	
 	if (mimeinfo == NULL || !noticeview_is_visible(mimeview->siginfoview))
 		return;
-#ifdef USE_PTHREAD
-	if (mimeview->check_data)
-		return;
-#endif
+
 	noticeview_set_text(mimeview->siginfoview, _("Checking signature..."));
 	GTK_EVENTS_FLUSH();
-#ifdef USE_PTHREAD
-	/* let's do it non-blocking */
-	mimeview_check_sig_in_thread(mimeview);
-	if (!mimeview->check_data) /* let's check syncronously */
-#endif
-	{
-		debug_print("checking without thread\n");
-		privacy_mimeinfo_check_signature(mimeinfo);
-		update_signature_noticeview(mimeview, mimeview->siginfo, FALSE, 0);
+
+	if (mimeview->sig_check_cancellable != NULL) {
+		if (mimeview->sig_check_timeout_tag == 0)
+			g_error("bad cancel source tag");
+		g_source_remove(mimeview->sig_check_timeout_tag);
+		g_cancellable_cancel(mimeview->sig_check_cancellable);
+		g_object_unref(mimeview->sig_check_cancellable);
+	}
+
+	mimeview->sig_check_cancellable = g_cancellable_new();
+
+	ret = privacy_mimeinfo_check_signature(mimeview->siginfo,
+		mimeview->sig_check_cancellable,
+		check_signature_async_cb,
+		mimeview);
+	if (ret == 0) {
+		mimeview->sig_check_timeout_tag = g_timeout_add_seconds(prefs_common.io_timeout_secs,
+			mimeview_check_sig_timeout, mimeview);
+	} else if (ret < 0) {
+		g_object_unref(mimeview->sig_check_cancellable);
+		mimeview->sig_check_cancellable = NULL;
+		update_signature_noticeview(mimeview, TRUE, SIGNATURE_CHECK_ERROR);
+	} else {
+		g_object_unref(mimeview->sig_check_cancellable);
+		mimeview->sig_check_cancellable = NULL;
+		update_signature_noticeview(mimeview, FALSE, 0);
 	}
 }
 
@@ -1373,11 +1276,8 @@ static void redisplay_email(GtkWidget *widget, gpointer user_data)
 static void display_full_info_cb(GtkWidget *widget, gpointer user_data)
 {
 	MimeView *mimeview = (MimeView *) user_data;
-	gchar *siginfo;
 
-	siginfo = privacy_mimeinfo_sig_info_full(mimeview->siginfo);
-	textview_set_text(mimeview->textview, siginfo);
-	g_free(siginfo);
+	textview_set_text(mimeview->textview, privacy_mimeinfo_get_sig_info(mimeview->siginfo, TRUE));
 	noticeview_set_button_text(mimeview->siginfoview, NULL);
 	noticeview_set_button_press_callback(
 		mimeview->siginfoview,
@@ -1426,7 +1326,7 @@ static void update_signature_info(MimeView *mimeview, MimeInfo *selected)
 		return;
 	}
 	
-	update_signature_noticeview(mimeview, siginfo, FALSE, 0);
+	update_signature_noticeview(mimeview, FALSE, 0);
 	noticeview_show(mimeview->siginfoview);
 }
 
@@ -1446,6 +1346,9 @@ static void mimeview_selected(GtkTreeSelection *selection, MimeView *mimeview)
 	GtkTreePath *path;
 	MimeInfo *partinfo;
 	MainWindow *mainwin;
+	GdkDisplay *display;
+	GdkSeat *seat;
+	GdkDevice *device;
 
 	selection = gtk_tree_view_get_selection(ctree);
 	if (!gtk_tree_selection_get_selected(selection, &model, &iter))
@@ -1469,8 +1372,11 @@ static void mimeview_selected(GtkTreeSelection *selection, MimeView *mimeview)
 	/* ungrab the mouse event */
 	if (gtk_widget_has_grab(GTK_WIDGET(ctree))) {
 		gtk_grab_remove(GTK_WIDGET(ctree));
-		if (gdk_pointer_is_grabbed())
-			gdk_pointer_ungrab(GDK_CURRENT_TIME);
+		display = gdk_window_get_display(gtk_widget_get_window(GTK_WIDGET(ctree)));
+		seat = gdk_display_get_default_seat(display);
+		device = gdk_seat_get_pointer(seat);
+		if (gdk_display_device_is_grabbed(display, device))
+			gdk_seat_ungrab(seat);
 	}
 	
 	mimeview->textview->default_text = FALSE;
@@ -1529,8 +1435,20 @@ static gboolean mimeview_scrolled(GtkWidget *widget, GdkEventScroll *event,
 	GtkVScrollbutton *scrollbutton = (GtkVScrollbutton *)mimeview->scrollbutton;
 	if (event->direction == GDK_SCROLL_UP) {
 		scrollbutton->scroll_type = GTK_SCROLL_STEP_BACKWARD;
-	} else {
+	} else if (event->direction == GDK_SCROLL_DOWN) {
 		scrollbutton->scroll_type = GTK_SCROLL_STEP_FORWARD;
+	} else {
+		gdouble x, y;
+
+		if ((event->direction == GDK_SCROLL_SMOOTH) &&
+				gdk_event_get_scroll_deltas((GdkEvent*)event, &x, &y)) {
+			if (y < 0)
+				scrollbutton->scroll_type = GTK_SCROLL_STEP_BACKWARD;
+			else
+				if (y >0)
+					scrollbutton->scroll_type = GTK_SCROLL_STEP_FORWARD;
+		} else
+			return FALSE; /* Scrolling left or right */
 	}
 	gtk_vscrollbutton_scroll(scrollbutton);
 	return TRUE;
@@ -1578,10 +1496,9 @@ static gboolean part_button_pressed(MimeView *mimeview, GdkEventButton *event,
 			main_window_set_menu_sensitive(mainwin);
 		g_object_set_data(G_OBJECT(mimeview->popupmenu),
 				  "pop_partinfo", partinfo);
-				    
-		gtk_menu_popup(GTK_MENU(mimeview->popupmenu),
-			       NULL, NULL, NULL, NULL,
-			       event->button, event->time);
+
+		gtk_menu_popup_at_pointer(GTK_MENU(mimeview->popupmenu),
+				(GdkEvent *)event);
 		return TRUE;
 	}
 
@@ -1725,7 +1642,7 @@ static void mimeview_drag_data_get(GtkWidget	    *widget,
 				   guint	     time,
 				   MimeView	    *mimeview)
 {
-	gchar *filename = NULL, *uriname, *tmp;
+	gchar *filename = NULL, *uriname, *tmp = NULL;
 	MimeInfo *partinfo;
 	gint err;
 	gint count = 0;
@@ -1738,7 +1655,12 @@ static void mimeview_drag_data_get(GtkWidget	    *widget,
 
 	if (strlen(get_part_name(partinfo)) > 0) {
 		filename = g_path_get_basename(get_part_name(partinfo));
-		if (*filename == '\0') return;
+		if (filename) {
+			if (*filename == '\0') {
+				g_free(filename);
+				return;
+			}
+		}
 	} else if (partinfo->type == MIMETYPE_MESSAGE 
 		   && !g_ascii_strcasecmp(partinfo->subtype, "rfc822")) {
 		gchar *name = NULL;
@@ -1774,13 +1696,12 @@ static void mimeview_drag_data_get(GtkWidget	    *widget,
 		tmp = conv_codeset_strdup(filename,
 				conv_get_locale_charset_str(),
 				CS_UTF_8);
-	else
-		tmp = g_strdup(filename);
 
 	if (tmp == NULL) {
 		g_warning("filename not in UTF-8");
-		tmp = g_strdup("Unnamed part");
+		tmp = g_strdup(filename);
 	}
+	g_free(filename);
 	filename = g_strconcat(get_mime_tmp_dir(), G_DIR_SEPARATOR_S,
 			       tmp, NULL);
 
@@ -1869,9 +1790,9 @@ static gchar *mimeview_get_filename_for_part(MimeInfo *partinfo,
  * \param filename Filename with path
  * \param partinfo Attachment to save
  */
-static gboolean mimeview_write_part(const gchar *filename,
-				    MimeInfo *partinfo,
-				    gboolean handle_error)
+static gint mimeview_write_part(const gchar *filename,
+				MimeInfo *partinfo,
+				gboolean handle_error)
 {
 	gchar *dir;
 	gint err;
@@ -1894,10 +1815,11 @@ static gboolean mimeview_write_part(const gchar *filename,
 		res = g_strdup_printf(_("Overwrite existing file '%s'?"),
 				      tmp);
 		g_free(tmp);
-		aval = alertpanel(_("Overwrite"), res, GTK_STOCK_CANCEL,
-				  GTK_STOCK_OK, NULL, ALERTFOCUS_FIRST);
+		aval = alertpanel(_("Overwrite"), res, NULL, _("_No"),
+				  NULL, _("_Yes"), NULL, NULL, ALERTFOCUS_FIRST);
 		g_free(res);
-		if (G_ALERTALTERNATE != aval) return FALSE;
+		if (G_ALERTALTERNATE != aval)
+			return 2;
 	}
 
 	if ((err = procmime_get_part(filename, partinfo)) < 0) {
@@ -1906,20 +1828,20 @@ static gboolean mimeview_write_part(const gchar *filename,
 			alertpanel_error
 				(_("Couldn't save the part of multipart message: %s"),
 				 g_strerror(-err));
-		return FALSE;
+		return 0;
 	}
 
-	return TRUE;
+	return 1;
 }
 
 static AlertValue mimeview_save_all_error_ask(gint n)
 {
 	gchar *message = g_strdup_printf(
-		_("An error has occurred while saving message part #%d. "
-		"Do you want to cancel operation or skip error and "
+		_("An error has occurred while saving message part %d. "
+		"Do you want to cancel saving or ignore error and "
 		"continue?"), n);
-	AlertValue av = alertpanel_full(_("Error saving all message parts"),
-		message, GTK_STOCK_CANCEL, _("Skip"), _("Skip all"),
+	AlertValue av = alertpanel_full(_("Error saving message part"),
+		message, NULL, _("_Cancel"), NULL, _("Ignore"), NULL, _("Ignore all"),
 		ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING);
 	g_free(message);
 	return av;
@@ -1927,15 +1849,21 @@ static AlertValue mimeview_save_all_error_ask(gint n)
 
 static void mimeview_save_all_info(gint errors, gint total)
 {
-	if (!errors) {
+	AlertValue aval;
+
+	if (!errors && prefs_common.show_save_all_success) {
 		gchar *msg = g_strdup_printf(
 				ngettext("%d file saved successfully.",
 					"%d files saved successfully.",
 					total),
 				total);
-		alertpanel_notice("%s", msg);
+		aval = alertpanel_full(_("Notice"), msg, NULL, _("_Close"),
+				       NULL, NULL, NULL, NULL, ALERTFOCUS_FIRST,
+				       TRUE, NULL, ALERT_NOTICE);
 		g_free(msg);
-	} else {
+		if (aval & G_ALERTDISABLE)
+			prefs_common.show_save_all_success = FALSE;
+	} else if (prefs_common.show_save_all_failure) {
 		gchar *msg1 = g_strdup_printf(
 				ngettext("%d file saved successfully",
 					"%d files saved successfully",
@@ -1946,9 +1874,13 @@ static void mimeview_save_all_info(gint errors, gint total)
 					"%s, %d files failed.",
 					errors),
 				msg1, errors);
-		alertpanel_warning("%s", msg2);
+		aval = alertpanel_full(_("Warning"), msg2, NULL, _("_Close"),
+				       NULL, NULL, NULL, NULL, ALERTFOCUS_FIRST,
+				       TRUE, NULL, ALERT_WARNING);
 		g_free(msg2);
 		g_free(msg1);
+		if (aval & G_ALERTDISABLE)
+			prefs_common.show_save_all_failure = FALSE;
 	}
 }
 
@@ -1961,7 +1893,7 @@ static void mimeview_save_all(MimeView *mimeview)
 	MimeInfo *partinfo;
 	gchar *dirname;
 	gchar *startdir = NULL;
-	gint number = 1, errors = 0;
+	gint number = 0, errors = 0;
 	gboolean skip_errors = FALSE;
 
 	if (!mimeview->opened) return;
@@ -2008,17 +1940,18 @@ static void mimeview_save_all(MimeView *mimeview)
 			gchar *filename = mimeview_get_filename_for_part(
 				partinfo, dirname, number++);
 
-			gboolean ok = mimeview_write_part(filename, partinfo, FALSE);
+			gint ok = mimeview_write_part(filename, partinfo, FALSE);
 			g_free(filename);
-			if (!ok) {
+			if (ok < 1) {
 				++errors;
 				if (!skip_errors) {
-					AlertValue av = mimeview_save_all_error_ask(number - 1);
+					AlertValue av = mimeview_save_all_error_ask(number);
 					skip_errors = (av == G_ALERTOTHER);
 					if (av == G_ALERTDEFAULT) /* cancel */
 						break;
 				}
-			}
+			} else if (ok == 2)
+				number--;
 		}
 		partinfo = procmime_mimeinfo_next(partinfo);
 	}
@@ -2029,7 +1962,7 @@ static void mimeview_save_all(MimeView *mimeview)
 					-1, NULL, NULL, NULL);
 	g_free(dirname);
 
-	mimeview_save_all_info(errors, number - 1);
+	mimeview_save_all_info(errors, number);
 }
 
 static MimeInfo *mimeview_get_part_to_use(MimeView *mimeview)
@@ -2344,9 +2277,9 @@ static void mimeview_view_file(const gchar *filename, MimeInfo *partinfo,
 				      _("This attachment is an executable file. Executing "
 				        "untrusted binaries is dangerous and could compromise "
 					"your computer.\n\n"
-					"Do you want to run this file?"), GTK_STOCK_CANCEL, 
-					_("Run binary"),
-		      		      NULL, ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING);
+					"Do you want to run this file?"), NULL, _("_Cancel"),
+					NULL, _("Run binary"), NULL, NULL, ALERTFOCUS_FIRST,
+					FALSE, NULL, ALERT_WARNING);
 		if (val == G_ALERTALTERNATE) {
 			debug_print("executing binary\n");
 			ShellExecute(NULL, L"open", (LPCWSTR)fn16, NULL, NULL, SW_SHOW);
@@ -2509,16 +2442,14 @@ static gboolean icon_popup_menu(GtkWidget *widget, gpointer data)
 
 	g_object_set_data(G_OBJECT(mimeview->popupmenu),
 			  "pop_partinfo", partinfo);
-	gtk_menu_popup(GTK_MENU(mimeview->popupmenu),
-		       NULL, NULL, NULL, NULL,
-		       0, gtk_get_current_event_time());
+	gtk_menu_popup_at_pointer(GTK_MENU(mimeview->popupmenu), NULL);
 	return TRUE;
 }
 
 static void icon_list_append_icon (MimeView *mimeview, MimeInfo *mimeinfo) 
 {
 	GtkWidget *pixmap = NULL;
-	GtkWidget *vbox;
+	GtkWidget *grid;
 	GtkWidget *button;
 	gchar *tip;
 	gchar *tiptmp;
@@ -2536,7 +2467,7 @@ static void icon_list_append_icon (MimeView *mimeview, MimeInfo *mimeinfo)
 	if (!prefs_common.show_inline_attachments && mimeinfo->id)
 		return;
 
-	vbox = mimeview->icon_vbox;
+	grid = mimeview->icon_grid;
 	mimeview->icon_count++;
 	button = gtk_event_box_new();
 
@@ -2610,6 +2541,7 @@ static void icon_list_append_icon (MimeView *mimeview, MimeInfo *mimeinfo)
 	if (siginfo != NULL) {
 		switch (privacy_mimeinfo_get_sig_status(siginfo)) {
 		case SIGNATURE_UNCHECKED:
+		case SIGNATURE_CHECK_ERROR:
 		case SIGNATURE_CHECK_FAILED:
 		case SIGNATURE_CHECK_TIMEOUT:
 			pixmap = stock_pixmap_widget_with_overlay(stockp,
@@ -2629,7 +2561,7 @@ static void icon_list_append_icon (MimeView *mimeview, MimeInfo *mimeinfo)
 			    STOCK_PIXMAP_PRIVACY_EMBLEM_FAILED, OVERLAY_BOTTOM_RIGHT, 6, 3);
 			break;
 		}
-		sigshort = privacy_mimeinfo_sig_info_short(siginfo);
+		sigshort = privacy_mimeinfo_get_sig_info(siginfo, FALSE);
 	} else if (encrypted != NULL) {
 			pixmap = stock_pixmap_widget_with_overlay(stockp,
 			    STOCK_PIXMAP_PRIVACY_EMBLEM_ENCRYPTED, OVERLAY_BOTTOM_RIGHT, 6, 3);		
@@ -2679,7 +2611,6 @@ static void icon_list_append_icon (MimeView *mimeview, MimeInfo *mimeinfo)
 		g_free(sigshort_escaped);
 		tip = tiptmp;
 	}
-	g_free(sigshort);
 
 	gtk_widget_set_tooltip_markup(button, tip);
 	g_free(tip);
@@ -2695,9 +2626,9 @@ static void icon_list_append_icon (MimeView *mimeview, MimeInfo *mimeinfo)
 			 G_CALLBACK(icon_key_pressed), mimeview);
 	g_signal_connect(G_OBJECT(button), "drag_data_get",
 			 G_CALLBACK(mimeview_drag_data_get), mimeview);
-	gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
+	gtk_container_add(GTK_CONTAINER(grid), button);
 #ifdef GENERIC_UMPC
-	gtk_widget_size_request(pixmap, &r);
+	gtk_widget_get_preferred_size(pixmap, &r, NULL);
 	gtk_widget_set_size_request(button, -1, r.height + 4);
 #endif
 
@@ -2708,16 +2639,15 @@ static void icon_list_clear (MimeView *mimeview)
 	GList     *child, *orig;
 	GtkAdjustment *adj;
 		
-	orig = gtk_container_get_children(GTK_CONTAINER(mimeview->icon_vbox));
+	orig = gtk_container_get_children(GTK_CONTAINER(mimeview->icon_grid));
 	for (child = orig; child != NULL; child = g_list_next(child)) {
-		gtkut_container_remove(GTK_CONTAINER(mimeview->icon_vbox), 
-				       GTK_WIDGET(child->data));
+		gtk_container_remove(GTK_CONTAINER(mimeview->icon_grid), 
+				     GTK_WIDGET(child->data));
 	}
 	g_list_free(orig);
 	mimeview->icon_count = 0;
-	adj  = gtk_layout_get_vadjustment(GTK_LAYOUT(mimeview->icon_scroll));
+	adj  = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(mimeview->icon_scroll));
 	gtk_adjustment_set_value(adj, gtk_adjustment_get_lower(adj));
-	gtk_adjustment_changed(adj);
 }
 
 /*!
@@ -2728,28 +2658,27 @@ static void icon_list_clear (MimeView *mimeview)
 static void icon_scroll_size_allocate_cb(GtkWidget *widget, 
 					 GtkAllocation *size, MimeView *mimeview)
 {
-	GtkAllocation vbox_size;
+	GtkAllocation grid_size;
 	GtkAllocation layout_size;
 	GtkAdjustment *adj;
 	guint width;
 	guint height;
 
-	adj = gtk_layout_get_vadjustment(GTK_LAYOUT(mimeview->icon_scroll));
+	adj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(mimeview->icon_scroll));
 
-	gtk_widget_get_allocation(mimeview->icon_vbox, &vbox_size);
+	gtk_widget_get_allocation(mimeview->icon_grid, &grid_size);
 	gtk_widget_get_allocation(mimeview->icon_scroll, &layout_size);
 		
 	gtk_layout_get_size(GTK_LAYOUT(mimeview->icon_scroll), &width, &height);
 	gtk_layout_set_size(GTK_LAYOUT(mimeview->icon_scroll), 
-			    width, 
-			    MAX(vbox_size.height, layout_size.height));
+			    MIN(grid_size.width, layout_size.width), 
+			    MAX(grid_size.height, layout_size.height));
 	gtk_adjustment_set_step_increment(adj, 10);
 }
 
 static void icon_list_create(MimeView *mimeview, MimeInfo *mimeinfo)
 {
-	GtkRequisition size;
-	GtkRequisition requisition;
+	gint min_width, width;
 
 	cm_return_if_fail(mimeinfo != NULL);
 
@@ -2763,11 +2692,10 @@ static void icon_list_create(MimeView *mimeview, MimeInfo *mimeinfo)
 			 ? (MimeInfo *) mimeinfo->node->next->data 
 			 : NULL;
 	}
-	gtk_widget_size_request(mimeview->icon_vbox, &size);
-	gtk_widget_get_requisition(mimeview->icon_mainbox, &requisition);
-	if (size.width > requisition.width) {
+	gtk_widget_get_preferred_width(mimeview->icon_mainbox, &min_width, &width);
+	if (min_width < width) {
 		gtk_widget_set_size_request(mimeview->icon_mainbox, 
-					    size.width, -1);
+					    min_width, -1);
 	}
 	if (mimeview->opened)
 		icon_list_toggle_by_mime_info(mimeview,
@@ -2779,7 +2707,7 @@ static void icon_list_toggle_by_mime_info (MimeView	*mimeview,
 {
 	GList *children, *child;
 	
-	children = gtk_container_get_children(GTK_CONTAINER(mimeview->icon_vbox));
+	children = gtk_container_get_children(GTK_CONTAINER(mimeview->icon_grid));
 	for (child = children; child != NULL; child = g_list_next(child)) {
 		gboolean *highlight = NULL;
 		GtkWidget *icon = gtk_bin_get_child(GTK_BIN(child->data));
@@ -2811,26 +2739,26 @@ static gint mime_toggle_button_cb(GtkWidget *button, GdkEventButton *event,
 
 	mimeview->ctree_mode = !mimeview->ctree_mode;
 	if (mimeview->ctree_mode) {
-		gtk_arrow_set(GTK_ARROW(gtk_bin_get_child(GTK_BIN((button)))), GTK_ARROW_RIGHT, 
-					GTK_SHADOW_NONE);
+		gtk_image_set_from_icon_name(GTK_IMAGE(mimeview->arrow),
+					      "pan-end-symbolic", GTK_ICON_SIZE_MENU);
 		gtk_widget_hide(mimeview->icon_mainbox);
 		gtk_widget_show(mimeview->ctree_mainbox);
 		gtk_paned_set_position(GTK_PANED(mimeview->paned),
 					prefs_common.mimeview_tree_height);
 
-		gtkut_container_remove(GTK_CONTAINER(mimeview->icon_mainbox), 
-					button);
+		gtk_container_remove(GTK_CONTAINER(mimeview->icon_mainbox), 
+				     button);
 		gtk_box_pack_end(GTK_BOX(mimeview->ctree_mainbox), 
 				   button, FALSE, FALSE, 0);
 	} else {
-		gtk_arrow_set(GTK_ARROW(gtk_bin_get_child(GTK_BIN((button)))), GTK_ARROW_LEFT, 
-			      GTK_SHADOW_NONE);
+		gtk_image_set_from_icon_name(GTK_IMAGE(mimeview->arrow),
+					      "pan-start-symbolic", GTK_ICON_SIZE_MENU);
 		gtk_widget_hide(mimeview->ctree_mainbox);
 		gtk_widget_show(mimeview->icon_mainbox);
 		gtk_paned_set_position(GTK_PANED(mimeview->paned), 0);
 
-		gtkut_container_remove(GTK_CONTAINER(mimeview->ctree_mainbox), 
-					button);
+		gtk_container_remove(GTK_CONTAINER(mimeview->ctree_mainbox), 
+				     button);
 		gtk_box_pack_start(GTK_BOX(mimeview->icon_mainbox), 
 				   button, FALSE, FALSE, 0);
 		gtk_box_reorder_child(GTK_BOX(gtk_widget_get_parent(button)), button, 0);

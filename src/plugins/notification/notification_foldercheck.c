@@ -1,6 +1,6 @@
 
 /* Notification plugin for Claws Mail
- * Copyright (C) 2005-2007 Holger Berndt
+ * Copyright (C) 2005-2022 Holger Berndt and the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -239,7 +239,7 @@ void notification_foldercheck_write_array(void)
 
   path = foldercheck_get_array_path();
   if((pfile = prefs_write_open(path)) == NULL) {
-    debug_print("Notification Plugin Error: Cannot open "
+    debug_print("Notification plugin error: cannot open "
 		"file " FOLDERCHECK_ARRAY " for writing\n");
     return;
   }
@@ -290,7 +290,7 @@ void notification_foldercheck_write_array(void)
   xml_write_tree(rootnode, pfile->fp);
 
   if(prefs_file_close(pfile) < 0) {
-    debug_print("Notification Plugin Error: Failed to write "
+    debug_print("Notification plugin error: failed to write "
 		"file " FOLDERCHECK_ARRAY "\n");
   }
 
@@ -361,7 +361,7 @@ gboolean notification_foldercheck_read_array(void)
       }
     }
     if((list == NULL) || (entry == NULL)) {
-      g_warning("Did not find attribute \"name\" in tag \"branch\"");
+      g_warning("did not find attribute \"name\" in tag \"branch\"");
       continue; /* with next branch */
     }
 
@@ -371,8 +371,8 @@ gboolean notification_foldercheck_read_array(void)
 
       /* These should all be leaves. */
       if(!G_NODE_IS_LEAF(node))
-	g_warning("Subnodes in \"branch\" nodes should all be leaves. "
-		  "Ignoring deeper subnodes.");
+	g_warning("subnodes in \"branch\" nodes should all be leaves, "
+		  "ignoring deeper subnodes");
 
       /* Check if tag is "folderitem" */
       xmlnode = node->data;
@@ -393,7 +393,7 @@ gboolean notification_foldercheck_read_array(void)
 	}
       }
       if((list == NULL) || (item == NULL)) {
-	g_warning("Did not find attribute \"identifier\" in tag "
+	g_warning("did not find attribute \"identifier\" in tag "
 		  "\"folderitem\"");
 	continue; /* with next leaf node */
       }
@@ -481,8 +481,6 @@ static void foldercheck_create_window(SpecificFolderArrayEntry *entry)
   gtk_window_set_position(GTK_WINDOW(entry->window), GTK_WIN_POS_CENTER);
   gtk_window_set_modal(GTK_WINDOW(entry->window), TRUE);
   gtk_window_set_resizable(GTK_WINDOW(entry->window), TRUE);
-  gtk_window_set_wmclass
-    (GTK_WINDOW(entry->window), "folder_selection", "Claws Mail");  
   g_signal_connect(G_OBJECT(entry->window), "delete_event",
 		   G_CALLBACK(delete_event), entry);
   g_signal_connect(G_OBJECT(entry->window), "key_press_event",
@@ -490,7 +488,7 @@ static void foldercheck_create_window(SpecificFolderArrayEntry *entry)
   MANAGE_WINDOW_SIGNALS_CONNECT(entry->window);
 
   /* vbox */
-  vbox = gtk_vbox_new(FALSE, 4);
+  vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
   gtk_container_add(GTK_CONTAINER(entry->window), vbox);
 
   /* scrolled window */
@@ -587,9 +585,9 @@ static void foldercheck_create_window(SpecificFolderArrayEntry *entry)
   gtk_box_pack_start(GTK_BOX(vbox), checkbox, FALSE, FALSE, 10);
 
   gtkut_stock_button_set_create(&confirm_area,
-				&cancel_button, GTK_STOCK_CANCEL,
-				&ok_button,     GTK_STOCK_OK,
-				NULL,           NULL);
+				&cancel_button, NULL, _("_Cancel"),
+				&ok_button, NULL, _("_OK"),
+				NULL, NULL, NULL);
   gtk_box_pack_end(GTK_BOX(vbox), confirm_area, FALSE, FALSE, 0);
   gtk_widget_grab_default(ok_button);
 

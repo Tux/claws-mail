@@ -220,12 +220,6 @@ gint plugin_init(gchar **error)
 			   VERSION_NUMERIC, _("Notification"), error))
     return -1;
 
-  /* Check if threading is enabled */
-  if(!g_thread_supported()) {
-    *error = g_strdup(_("The Notification plugin needs threading support."));
-    return -1;
-  }
-
   hook_f_item = hooks_register_hook(FOLDER_ITEM_UPDATE_HOOKLIST,
 				    my_folder_item_update_hook, NULL);
   if(hook_f_item == 0) {
@@ -435,7 +429,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-  return "GTK2";
+  return "GTK3";
 }
 
 const gchar *plugin_licence(void)

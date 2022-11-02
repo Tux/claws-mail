@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2004 Hiroyuki Yamamoto
  * This file (C) 2005 Andrej Kacian <andrej@kacian.sk>
  *
@@ -32,7 +32,6 @@
 /* Claws Mail includes */
 #include <folder.h>
 #include <procmsg.h>
-#include <localfolder.h>
 #include <main.h>
 #include <mh.h>
 #include <xml.h>
@@ -259,7 +258,6 @@ static Folder *rssyl_new_folder(const gchar *name, const gchar *path)
 
 static void rssyl_destroy_folder(Folder *folder)
 {
-	folder_local_folder_destroy(LOCAL_FOLDER(folder));
 }
 
 static void rssyl_item_set_xml(Folder *folder, FolderItem *item, XMLTag *tag)
@@ -930,7 +928,7 @@ static gboolean rssyl_subscribe_uri(Folder *folder, const gchar *uri)
 static void rssyl_copy_private_data(Folder *folder, FolderItem *oldi,
 		FolderItem *newi)
 {
-	gchar *dpathold, *dpathnew;
+	gchar *dpathold, *dpathnew, *pathold, *pathnew;
 	RFolderItem *olditem = (RFolderItem *)oldi,
 									*newitem = (RFolderItem *)newi;
 
@@ -986,11 +984,13 @@ static void rssyl_copy_private_data(Folder *folder, FolderItem *oldi,
 	newitem->fetching_comments = olditem->fetching_comments;
 	newitem->last_update = olditem->last_update;
 
-	dpathold = g_strconcat(rssyl_item_get_path(oldi->folder, oldi),
-			G_DIR_SEPARATOR_S, RSSYL_DELETED_FILE, NULL);
-	dpathnew = g_strconcat(rssyl_item_get_path(newi->folder, newi),
-			G_DIR_SEPARATOR_S, RSSYL_DELETED_FILE, NULL);
+	pathold = rssyl_item_get_path(oldi->folder, oldi);
+	dpathold = g_strconcat(pathold, G_DIR_SEPARATOR_S, RSSYL_DELETED_FILE, NULL);
+	pathnew = rssyl_item_get_path(newi->folder, newi);
+	dpathnew = g_strconcat(pathnew, G_DIR_SEPARATOR_S, RSSYL_DELETED_FILE, NULL);
 	move_file(dpathold, dpathnew, TRUE);
+	g_free(pathold);
+	g_free(pathnew);
 	g_free(dpathold);
 	g_free(dpathnew);
 

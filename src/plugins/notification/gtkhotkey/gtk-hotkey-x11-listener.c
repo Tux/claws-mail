@@ -16,6 +16,8 @@
  *   along with GtkHotkey.  If not, see <http://www.gnu.org/licenses/>.
  */
  
+#include "config.h"
+
 #include "gtk-hotkey-error.h"
 #include "gtk-hotkey-x11-listener.h"
 #include "gtk-hotkey-listener.h"
@@ -72,7 +74,7 @@ gtk_hotkey_x11_listener_real_bind_hotkey (GtkHotkeyListener *base,
 	
 	if (find_hotkey_from_key_id(self, 
 								gtk_hotkey_info_get_key_id (hotkey))) {
-		g_warning ("Hotkey '%s' already registered. Ignoring register request.",
+		g_warning("hotkey '%s' already registered. Ignoring register request",
 				   gtk_hotkey_info_get_key_id (hotkey));
 		return FALSE;
 	}

@@ -1,7 +1,7 @@
 /*
  * Claws Mail templates subsystem 
  * Copyright (C) 2001 Alexander Barinov
- * Copyright (C) 2001-2018 The Claws Mail team
+ * Copyright (C) 2001-2021 The Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
  * 
  */
 
+#include "config.h"
 #include "defs.h"
 
 #include <glib.h>
@@ -46,7 +47,7 @@ static Template *template_load(gchar *filename)
 	}
 
 	tmpl = g_new(Template, 1);
-	tmpl->load_filename = g_strdup(filename);;
+	tmpl->load_filename = g_strdup(filename);
 	tmpl->name = NULL;
 	tmpl->subject = NULL;
 	tmpl->from = NULL;
@@ -156,11 +157,8 @@ static gint tmpl_compare(gconstpointer tmpl1, gconstpointer tmpl2)
 GSList *template_read_config(void)
 {
 	const gchar *path;
-	gchar *filename;
 	GDir *dir;
 	const gchar *dir_name;
-	GStatBuf s;
-	Template *tmpl;
 	GSList *tmpl_list = NULL;
 
 	path = get_template_dir();
@@ -178,12 +176,15 @@ GSList *template_read_config(void)
 	}
 
 	while ((dir_name = g_dir_read_name(dir)) != NULL) {
-		filename = g_strconcat(path, G_DIR_SEPARATOR_S,
+		Template *tmpl;
+		GStatBuf s;
+		gchar *filename = g_strconcat(path, G_DIR_SEPARATOR_S,
 				       dir_name, NULL);
 
 		if (g_stat(filename, &s) != 0 || !S_ISREG(s.st_mode) ) {
 			debug_print("%s:%d %s is not an ordinary file\n",
 				    __FILE__, __LINE__, filename);
+			g_free(filename);
 			continue;
 		}
 
@@ -202,7 +203,7 @@ GSList *template_read_config(void)
 #define TRY(func) { \
 if (!(func)) \
 { \
-	g_warning("Failed to write template to file"); \
+	g_warning("failed to write template to file"); \
 	if (fp) claws_fclose(fp); \
 	if (new) claws_unlink(new); \
 	g_free(new); \
@@ -214,7 +215,7 @@ if (!(func)) \
 #define TRY_NO_CLOSE(func) { \
 if (!(func)) \
 { \
-	g_warning("Failed to write template to file"); \
+	g_warning("failed to write template to file"); \
 	if (new) claws_unlink(new); \
 	g_free(new); \
 	g_free(filename); \

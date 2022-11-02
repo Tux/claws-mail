@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2003-2012 Match Grun and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,8 @@
 /*
  * Functions to define an address query (a request).
  */
+
+#include "config.h"
 
 #include <stdio.h>
 #include <string.h>

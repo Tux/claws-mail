@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Colin Leroy <colin@colino.net> 
  * and the Claws Mail team
  *
@@ -22,7 +22,6 @@
 #define __ETPAN_SSL_H__
 
 #ifdef HAVE_CONFIG_H
-#  include "config.h"
 #include "claws-features.h"
 #endif
 

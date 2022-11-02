@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2001-2017 Match Grun and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +19,8 @@
 /*
  * General primitive address item objects.
  */
+
+#include "config.h"
 
 #include <glib.h>
 #include <stdio.h>
@@ -788,6 +790,8 @@ void addritem_print_item_group( ItemGroup *group, FILE *stream ) {
 ItemFolder *addritem_create_item_folder( void ) {
 	ItemFolder *folder;
 	folder = g_new0( ItemFolder, 1 );
+	if (!folder)
+		g_error("could not create new itemFolder");
 	ADDRITEM_TYPE(folder) = ITEMTYPE_FOLDER;
 	ADDRITEM_ID(folder) = NULL;
 	ADDRITEM_NAME(folder) = NULL;
@@ -812,14 +816,14 @@ ItemFolder *addritem_create_item_folder( void ) {
  * \return A copy of the folder, or <i>NULL</i> if null argument supplied.
  */
 ItemFolder *addritem_copy_item_folder( ItemFolder *item ) {
-	ItemFolder *itemNew;
+	ItemFolder *itemNew = NULL;
 
-	itemNew = g_new0( ItemFolder, 1 );
 	if( item ) {
 		itemNew = addritem_create_item_folder();
 		ADDRITEM_NAME(itemNew) = g_strdup( ADDRITEM_NAME(item) );
 		itemNew->folderType = item->folderType;
-	}
+	} else
+		g_error("could not create a copy of a null itemFolder");
 	return itemNew;
 }
 

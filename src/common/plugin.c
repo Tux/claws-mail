@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2002-2015 the Claws Mail Team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2002-2022 the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ const gchar *plugin_feature_names[] =
 	  N_("filtering"),
 	  N_("a privacy interface"),
 	  N_("a notifier"),
-	  N_("an utility"),
+	  N_("a utility"),
 	  N_("things"),
 	  NULL };
 
@@ -154,6 +154,7 @@ void plugin_save_list(void)
 		    (prefs_set_block_label(pfile, block) < 0)) {
 			g_warning("failed to write plugin list");
 			g_free(rcpath);
+			g_free(block);
 			return;
 		}
 		g_free(block);
@@ -583,7 +584,9 @@ static void replace_old_plugin_name(gchar *plugin_name)
 		
 		strncpy(plugin_name + offset, new_name_end, strlen(old_name_end) - 1);
 		debug_print(" to %s\n", plugin_name);
+		g_free(new_name_end);
 	}
+	g_free(old_name_end);
 }
 
 void plugin_load_all(const gchar *type)
@@ -600,6 +603,7 @@ void plugin_load_all(const gchar *type)
 	if ((pfile = prefs_read_open(rcpath)) == NULL ||
 	    (prefs_set_block_label(pfile, block) < 0)) {
 		g_free(rcpath);
+		g_free(block);
 		if (pfile)
 			prefs_file_close(pfile);
 		return;

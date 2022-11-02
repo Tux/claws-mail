@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2004 Hiroyuki Yamamoto
  * This file (C) 2005 Andrej Kacian <andrej@kacian.sk>
  *
@@ -108,19 +108,17 @@ void rssyl_deleted_update(RFolderItem *ritem)
 	g_file_get_contents(deleted_file, &contents, NULL, &error);
 
 	if (error) {
-		g_warning("GError: '%s'", error->message);
+		g_warning("error: '%s'", error->message);
 		g_error_free(error);
 	}
 
 	if (contents != NULL) {
 		lines = strsplit_no_copy(contents, '\n');
 	} else {
-		g_warning("Couldn't read '%s', ignoring", deleted_file);
+		g_warning("couldn't read '%s', ignoring", deleted_file);
 		g_free(deleted_file);
 		return;
 	}
-
-	g_free(deleted_file);
 
 	while (lines[i]) {
 		line = g_strsplit(lines[i], ": ", 2);
@@ -140,6 +138,10 @@ void rssyl_deleted_update(RFolderItem *ritem)
 		g_strfreev(line);
 		i++;
 	}
+	if (ditem)
+		g_warning("short read while parsing the list of deleted items for '%s'\n",
+				deleted_file);
+	g_free(deleted_file);
 
 	g_free(lines);
 	g_free(contents);
@@ -162,9 +164,9 @@ static void _store_one_deleted_item(gpointer data, gpointer user_data)
 	err |= (fprintf(f,
 			"ID: %s\n"
 			"TITLE: %s\n"
-			"DPUB: %lld\n",
+			"DPUB: %" CM_TIME_FORMAT "\n",
 			ditem->id, ditem->title,
-			(long long)ditem->date_published) < 0);
+			ditem->date_published) < 0);
 
 	if (err)
 		debug_print("RSSyl: Error during writing deletion file.\n");

@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2020 the Claws Mail team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,76 +71,64 @@
 #include "avatars.h"
 #include "file-utils.h"
 
-static GdkColor quote_colors[3] = {
-	{(gulong)0, (gushort)0, (gushort)0, (gushort)0},
-	{(gulong)0, (gushort)0, (gushort)0, (gushort)0},
-	{(gulong)0, (gushort)0, (gushort)0, (gushort)0}
+static GdkRGBA quote_colors[3] = {
+	{0, 0, 0, 1},
+	{0, 0, 0, 1},
+	{0, 0, 0, 1}
 };
 
-static GdkColor quote_bgcolors[3] = {
-	{(gulong)0, (gushort)0, (gushort)0, (gushort)0},
-	{(gulong)0, (gushort)0, (gushort)0, (gushort)0},
-	{(gulong)0, (gushort)0, (gushort)0, (gushort)0}
+static GdkRGBA quote_bgcolors[3] = {
+	{0, 0, 0, 1},
+	{0, 0, 0, 1},
+	{0, 0, 0, 1}
 };
-static GdkColor signature_color = {
-	(gulong)0,
-	(gushort)0x7fff,
-	(gushort)0x7fff,
-	(gushort)0x7fff
+static GdkRGBA signature_color = {
+	0.5, 0.5, 0.5, 1
 };
 	
-static GdkColor uri_color = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA uri_color = {
+	0, 0, 0, 1
 };
 
-static GdkColor emphasis_color = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA emphasis_color = {
+	0, 0, 0, 1
 };
 
-static GdkColor diff_added_color = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA diff_added_color = {
+	0, 0, 0, 1
 };
 
-static GdkColor diff_deleted_color = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA diff_deleted_color = {
+	0, 0, 0, 1
 };
 
-static GdkColor diff_hunk_color = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA diff_hunk_color = {
+	0, 0, 0, 1
 };
 
-static GdkColor tags_bgcolor = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA tags_bgcolor = {
+	0, 0, 0, 1
 };
 
-static GdkColor tags_color = {
-	(gulong)0,
-	(gushort)0,
-	(gushort)0,
-	(gushort)0
+static GdkRGBA tags_color = {
+	0, 0, 0, 1
 };
 
 static GdkCursor *hand_cursor = NULL;
 static GdkCursor *text_cursor = NULL;
 static GdkCursor *watch_cursor= NULL;
+
+#define TEXTVIEW_FONT_SIZE_STEP 15 /* pango font zoom level change granularity in % */
+#define TEXTVIEW_FONT_SIZE_MIN -75 /* this gives 5 zoom out steps at 15% */
+#define TEXTVIEW_FONT_SIZE_MAX 3100 /* this gives 200 zoom in steps at 15% */
+#define TEXTVIEW_FONT_SIZE_UNSET -666 /* default value when unset (must be lower than TEXTVIEW_FONT_SIZE_MIN */
+
+/* font size in session (will apply to next message views we open */
+/* must be lower than TEXTVIEW_FONT_SIZE_MIN */
+static gint textview_font_size_percent = TEXTVIEW_FONT_SIZE_UNSET;
+static gint textview_font_size_default = TEXTVIEW_FONT_SIZE_UNSET;
+
+static void textview_set_font_zoom(TextView *textview);
 
 #define TEXTVIEW_STATUSBAR_PUSH(textview, str)				    \
 {	if (textview->messageview->statusbar)				    \
@@ -181,9 +169,20 @@ static GPtrArray *textview_scan_header	(TextView	*textview,
 static void textview_show_header	(TextView	*textview,
 					 GPtrArray	*headers);
 
+static void textview_zoom(GtkWidget *widget, gboolean zoom_in);
+static void textview_zoom_in(GtkWidget *widget, gpointer data);
+static void textview_zoom_out(GtkWidget *widget, gpointer data);
+static void textview_zoom_reset(GtkWidget *widget, gpointer data);
+
 static gint textview_key_pressed		(GtkWidget	*widget,
 						 GdkEventKey	*event,
 						 TextView	*textview);
+static gboolean textview_scrolled(GtkWidget *widget,
+						 GdkEvent *_event,
+						 gpointer user_data);
+static void textview_populate_popup(GtkTextView *self,
+						 GtkMenu *menu,
+						 gpointer user_data);
 static gboolean textview_motion_notify		(GtkWidget	*widget,
 						 GdkEventMotion	*motion,
 						 TextView	*textview);
@@ -252,22 +251,32 @@ static GtkActionEntry textview_mail_popup_entries[] =
 	{"TextviewPopupMail/Copy",		NULL, N_("Copy this add_ress"), NULL, NULL, G_CALLBACK(copy_mail_to_uri_cb) },
 };
 
-static void scrolled_cb (GtkAdjustment *adj, TextView *textview)
+static gboolean move_textview_image_cb (gpointer data)
 {
 #ifndef WIDTH
 #  define WIDTH 48
 #  define HEIGHT 48
 #endif
+	TextView *textview = (TextView *)data;
+	GtkAllocation allocation;
+	gint x, wx, wy;
+	gtk_widget_get_allocation(textview->text, &allocation);
+	x = allocation.width - WIDTH - 5;
+	gtk_text_view_buffer_to_window_coords(
+		GTK_TEXT_VIEW(textview->text),
+		GTK_TEXT_WINDOW_TEXT, x, 5, &wx, &wy);
+	gtk_text_view_move_child(GTK_TEXT_VIEW(textview->text),
+		textview->image, wx, wy);
+
+	return G_SOURCE_REMOVE;
+}
+
+static void scrolled_cb (GtkAdjustment *adj, gpointer data)
+{
+	TextView *textview = (TextView *)data;
+
 	if (textview->image) {
-		GtkAllocation allocation;
-		gint x, y, x1;
-		gtk_widget_get_allocation(textview->text, &allocation);
-		x1 = allocation.width - WIDTH - 5;
-		gtk_text_view_buffer_to_window_coords(
-			GTK_TEXT_VIEW(textview->text),
-			GTK_TEXT_WINDOW_TEXT, x1, 5, &x, &y);
-		gtk_text_view_move_child(GTK_TEXT_VIEW(textview->text), 
-			textview->image, x1, y);
+		move_textview_image_cb(textview);
 	}
 }
 
@@ -275,7 +284,11 @@ static void textview_size_allocate_cb	(GtkWidget	*widget,
 					 GtkAllocation	*allocation,
 					 gpointer	 data)
 {
-	scrolled_cb(NULL, (TextView *)data);
+	TextView *textview = (TextView *)data;
+
+	if (textview->image) {
+		g_timeout_add(0, &move_textview_image_cb, textview);
+	}
 }
 
 TextView *textview_create(void)
@@ -295,10 +308,9 @@ TextView *textview_create(void)
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwin),
 				       GTK_POLICY_AUTOMATIC,
 				       GTK_POLICY_AUTOMATIC);
+	gtk_widget_set_vexpand(GTK_WIDGET(scrolledwin), TRUE);
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scrolledwin),
 					    GTK_SHADOW_IN);
-	gtk_widget_set_size_request
-		(scrolledwin, prefs_common.mainview_width, -1);
 
 	/* create GtkSText widgets for single-byte and multi-byte character */
 	text = gtk_text_view_new();
@@ -335,11 +347,16 @@ TextView *textview_create(void)
 	g_signal_connect(G_OBJECT(text), "size_allocate",
 			 G_CALLBACK(textview_size_allocate_cb),
 			 textview);
+	g_signal_connect(G_OBJECT(text), "scroll-event",
+			G_CALLBACK(textview_scrolled), textview);
+	g_signal_connect(G_OBJECT(text), "populate-popup",
+			G_CALLBACK(textview_populate_popup), textview);
 
 
 	gtk_widget_show(scrolledwin);
 
-	vbox = gtk_vbox_new(FALSE, 0);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_widget_set_name(GTK_WIDGET(vbox), "textview");
 	gtk_box_pack_start(GTK_BOX(vbox), scrolledwin, TRUE, TRUE, 0);
 
 	gtk_widget_show(vbox);
@@ -433,46 +450,46 @@ static void textview_create_tags(GtkTextView *text, TextView *textview)
 				   "font-desc", font_desc,
 				   "left-margin", 3,
 				   "left-margin-set", TRUE,
-				   "foreground-gdk", &uri_color,
+				   "foreground-rgba", &uri_color,
 				   NULL);
 	g_signal_connect(G_OBJECT(tag), "event",
-                         G_CALLBACK(textview_uri_button_pressed), textview);
+				   G_CALLBACK(textview_uri_button_pressed), textview);
 	if (prefs_common.enable_bgcolor) {
 		gtk_text_buffer_create_tag(buffer, "quote0",
-				"foreground-gdk", &quote_colors[0],
-				"paragraph-background-gdk", &quote_bgcolors[0],
+				"foreground-rgba", &quote_colors[0],
+				"paragraph-background-rgba", &quote_bgcolors[0],
 				NULL);
 		gtk_text_buffer_create_tag(buffer, "quote1",
-				"foreground-gdk", &quote_colors[1],
-				"paragraph-background-gdk", &quote_bgcolors[1],
+				"foreground-rgba", &quote_colors[1],
+				"paragraph-background-rgba", &quote_bgcolors[1],
 				NULL);
 		gtk_text_buffer_create_tag(buffer, "quote2",
-				"foreground-gdk", &quote_colors[2],
-				"paragraph-background-gdk", &quote_bgcolors[2],
+				"foreground-rgba", &quote_colors[2],
+				"paragraph-background-rgba", &quote_bgcolors[2],
 				NULL);
 	} else {
 		gtk_text_buffer_create_tag(buffer, "quote0",
-				"foreground-gdk", &quote_colors[0],
+				"foreground-rgba", &quote_colors[0],
 				NULL);
 		gtk_text_buffer_create_tag(buffer, "quote1",
-				"foreground-gdk", &quote_colors[1],
+				"foreground-rgba", &quote_colors[1],
 				NULL);
 		gtk_text_buffer_create_tag(buffer, "quote2",
-				"foreground-gdk", &quote_colors[2],
+				"foreground-rgba", &quote_colors[2],
 				NULL);
 	}
 	gtk_text_buffer_create_tag(buffer, "tags",
-			"foreground-gdk", &tags_color,
-			"paragraph-background-gdk", &tags_bgcolor,
+			"foreground-rgba", &tags_color,
+			"paragraph-background-rgba", &tags_bgcolor,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "emphasis",
-			"foreground-gdk", &emphasis_color,
+			"foreground-rgba", &emphasis_color,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "signature",
-			"foreground-gdk", &signature_color,
+			"foreground-rgba", &signature_color,
 			NULL);
 	tag = gtk_text_buffer_create_tag(buffer, "link",
-			"foreground-gdk", &uri_color,
+			"foreground-rgba", &uri_color,
 			NULL);
 	qtag = gtk_text_buffer_create_tag(buffer, "qlink",
 			NULL);
@@ -480,56 +497,58 @@ static void textview_create_tags(GtkTextView *text, TextView *textview)
 			"underline", PANGO_UNDERLINE_SINGLE,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "diff-add",
-			"foreground-gdk", &diff_added_color,
+			"foreground-rgba", &diff_added_color,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "diff-del",
-			"foreground-gdk", &diff_deleted_color,
+			"foreground-rgba", &diff_deleted_color,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "diff-add-file",
-			"foreground-gdk", &diff_added_color,
+			"foreground-rgba", &diff_added_color,
 			"weight", PANGO_WEIGHT_BOLD,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "diff-del-file",
-			"foreground-gdk", &diff_deleted_color,
+			"foreground-rgba", &diff_deleted_color,
 			"weight", PANGO_WEIGHT_BOLD,
 			NULL);
 	gtk_text_buffer_create_tag(buffer, "diff-hunk",
-			"foreground-gdk", &diff_hunk_color,
+			"foreground-rgba", &diff_hunk_color,
 			"weight", PANGO_WEIGHT_BOLD,
 			NULL);
 	g_signal_connect(G_OBJECT(qtag), "event",
-                         G_CALLBACK(textview_uri_button_pressed), textview);
+				   G_CALLBACK(textview_uri_button_pressed), textview);
 	g_signal_connect(G_OBJECT(tag), "event",
-                         G_CALLBACK(textview_uri_button_pressed), textview);
+				   G_CALLBACK(textview_uri_button_pressed), textview);
 /*	if (font_desc)
 		pango_font_description_free(font_desc);
 	if (bold_font_desc)
 		pango_font_description_free(bold_font_desc);*/
- }
+}
 
 void textview_init(TextView *textview)
 {
 	if (!hand_cursor)
-		hand_cursor = gdk_cursor_new(GDK_HAND2);
+		hand_cursor = gdk_cursor_new_for_display(
+				gtk_widget_get_display(textview->vbox), GDK_HAND2);
 	if (!text_cursor)
-		text_cursor = gdk_cursor_new(GDK_XTERM);
+		text_cursor = gdk_cursor_new_for_display(
+				gtk_widget_get_display(textview->vbox), GDK_XTERM);
 	if (!watch_cursor)
-		watch_cursor = gdk_cursor_new(GDK_WATCH);
+		watch_cursor = gdk_cursor_new_for_display(
+				gtk_widget_get_display(textview->vbox), GDK_WATCH);
 
 	textview_reflect_prefs(textview);
-	textview_set_font(textview, NULL);
 	textview_create_tags(GTK_TEXT_VIEW(textview->text), textview);
 }
 
- #define CHANGE_TAG_COLOR(tagname, colorfg, colorbg) { \
+#define CHANGE_TAG_COLOR(tagname, colorfg, colorbg) { \
 	tag = gtk_text_tag_table_lookup(tags, tagname); \
 	if (tag) \
-		g_object_set(G_OBJECT(tag), "foreground-gdk", colorfg, "paragraph-background-gdk", colorbg, NULL); \
- }
+		g_object_set(G_OBJECT(tag), "foreground-rgba", colorfg, "paragraph-background-rgba", colorbg, NULL); \
+}
 
 static void textview_update_message_colors(TextView *textview)
 {
-	GdkColor black = {0, 0, 0, 0};
+	GdkRGBA black = {0, 0, 0, 1};
 	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(textview->text));
 
 	GtkTextTagTable *tags = gtk_text_buffer_get_tag_table(buffer);
@@ -543,32 +562,20 @@ static void textview_update_message_colors(TextView *textview)
 
 	if (prefs_common.enable_color) {
 		/* grab the quote colors, converting from an int to a GdkColor */
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_QUOTE_LEVEL1],
-					       &quote_colors[0]);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_QUOTE_LEVEL2],
-					       &quote_colors[1]);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_QUOTE_LEVEL3],
-					       &quote_colors[2]);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_URI],
-					       &uri_color);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_SIGNATURE],
-					       &signature_color);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_EMPHASIS],
-					       &emphasis_color);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_DIFF_ADDED],
-					       &diff_added_color);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_DIFF_DELETED],
-					       &diff_deleted_color);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_DIFF_HUNK],
-					       &diff_hunk_color);
+		quote_colors[0] = prefs_common.color[COL_QUOTE_LEVEL1];
+		quote_colors[1] = prefs_common.color[COL_QUOTE_LEVEL2];
+		quote_colors[2] = prefs_common.color[COL_QUOTE_LEVEL3];
+		uri_color = prefs_common.color[COL_URI];
+		signature_color = prefs_common.color[COL_SIGNATURE];
+		emphasis_color = prefs_common.color[COL_EMPHASIS];
+		diff_added_color = prefs_common.color[COL_DIFF_ADDED];
+		diff_deleted_color = prefs_common.color[COL_DIFF_DELETED];
+		diff_hunk_color = prefs_common.color[COL_DIFF_HUNK];
 	}
 	if (prefs_common.enable_color && prefs_common.enable_bgcolor) {
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_QUOTE_LEVEL1_BG],
-						   &quote_bgcolors[0]);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_QUOTE_LEVEL2_BG],
-						   &quote_bgcolors[1]);
-		gtkut_convert_int_to_gdk_color(prefs_common.color[COL_QUOTE_LEVEL3_BG],
-						   &quote_bgcolors[2]);
+		quote_bgcolors[0] = prefs_common.color[COL_QUOTE_LEVEL1_BG];
+		quote_bgcolors[1] = prefs_common.color[COL_QUOTE_LEVEL2_BG];
+		quote_bgcolors[2] = prefs_common.color[COL_QUOTE_LEVEL3_BG];
 		CHANGE_TAG_COLOR("quote0", &quote_colors[0], &quote_bgcolors[0]);
 		CHANGE_TAG_COLOR("quote1", &quote_colors[1], &quote_bgcolors[1]);
 		CHANGE_TAG_COLOR("quote2", &quote_colors[2], &quote_bgcolors[2]);
@@ -588,10 +595,8 @@ static void textview_update_message_colors(TextView *textview)
 	CHANGE_TAG_COLOR("diff-del-file", &diff_deleted_color, NULL);
 	CHANGE_TAG_COLOR("diff-hunk", &diff_hunk_color, NULL);
 
-	gtkut_convert_int_to_gdk_color(prefs_common.color[COL_TAGS_BG],
-					   &tags_bgcolor);
-	gtkut_convert_int_to_gdk_color(prefs_common.color[COL_TAGS],
-					   &tags_color);
+	tags_bgcolor = prefs_common.color[COL_TAGS_BG];
+	tags_color = prefs_common.color[COL_TAGS];
 }
 #undef CHANGE_TAG_COLOR
 
@@ -683,7 +688,8 @@ static void textview_add_part(TextView *textview, MimeInfo *mimeinfo)
 			if (charcount > 0)
 				gtk_text_buffer_insert(buffer, &iter, "\n", 1);
 			
-			if (procmime_mimeinfo_parent(mimeinfo) == NULL)
+			if (procmime_mimeinfo_parent(mimeinfo) == NULL &&
+			    !prefs_common.display_header_pane)
 				textview_show_tags(textview);
 			textview_show_header(textview, headers);
 			procheader_header_array_destroy(headers);
@@ -723,7 +729,7 @@ static void textview_add_part(TextView *textview, MimeInfo *mimeinfo)
 
 			pixbuf = procmime_get_part_as_pixbuf(mimeinfo, &error);
 			if (error != NULL) {
-				g_warning("Can't load the image: %s\n", error->message);
+				g_warning("can't load the image: %s", error->message);
 				g_error_free(error);
 				END_TIMING();
 				return;
@@ -879,7 +885,7 @@ void textview_show_error(TextView *textview)
 		      "  Use "));
 	TEXTVIEW_INSERT_LINK(_("'Network Log'"), "sc://view_log", NULL);
 	TEXTVIEW_INSERT(_(" in the Tools menu for more information."));
-	textview_show_icon(textview, GTK_STOCK_DIALOG_ERROR);
+	textview_show_icon(textview, "dialog-error");
 }
 
 void textview_show_info(TextView *textview, const gchar *info_str)
@@ -896,7 +902,7 @@ void textview_show_info(TextView *textview, const gchar *info_str)
 	gtk_text_buffer_get_start_iter(buffer, &iter);
 
 	TEXTVIEW_INSERT(info_str);
-	textview_show_icon(textview, GTK_STOCK_DIALOG_INFO);
+	textview_show_icon(textview, "dialog-information");
 	textview_cursor_normal(textview);
 }
 
@@ -996,7 +1002,7 @@ void textview_show_mime_part(TextView *textview, MimeInfo *partinfo)
 #endif
 	TEXTVIEW_INSERT("\n");
 
-	textview_show_icon(textview, GTK_STOCK_DIALOG_INFO);
+	textview_show_icon(textview, "dialog-information");
 }
 
 static void textview_write_body(TextView *textview, MimeInfo *mimeinfo)
@@ -1028,6 +1034,7 @@ static void textview_write_body(TextView *textview, MimeInfo *mimeinfo)
 	}
 
 	textview_set_font(textview, charset);
+	textview_set_font_zoom(textview);
 
 	conv = conv_code_converter_new(charset);
 
@@ -1035,7 +1042,7 @@ static void textview_write_body(TextView *textview, MimeInfo *mimeinfo)
 	
 	textview->is_in_signature = FALSE;
 	textview->is_diff = FALSE;
-	textview->is_attachment = FALSE;;
+	textview->is_attachment = FALSE;
 	textview->is_in_git_patch = FALSE;
 
 	procmime_decode_content(mimeinfo);
@@ -1124,6 +1131,7 @@ static void textview_write_body(TextView *textview, MimeInfo *mimeinfo)
 				waitpid(pid, pfd, 0);
 				g_unlink(fname);
 				account_sigsep_matchlist_delete();
+				conv_code_converter_destroy(conv);
 				return;
 			}
 		}
@@ -1154,12 +1162,14 @@ textview_default:
 		if (!tmpfp) {
 			FILE_OP_ERROR(mimeinfo->data.filename, "claws_fopen");
 			account_sigsep_matchlist_delete();
+			conv_code_converter_destroy(conv);
 			return;
 		}
 		if (fseek(tmpfp, mimeinfo->offset, SEEK_SET) < 0) {
 			FILE_OP_ERROR(mimeinfo->data.filename, "fseek");
 			claws_fclose(tmpfp);
 			account_sigsep_matchlist_delete();
+			conv_code_converter_destroy(conv);
 			return;
 		}
 		debug_print("Viewing text content of type: %s (length: %d)\n", mimeinfo->subtype, mimeinfo->length);
@@ -1170,6 +1180,7 @@ textview_default:
 			if (textview->stop_loading) {
 				claws_fclose(tmpfp);
 				account_sigsep_matchlist_delete();
+				conv_code_converter_destroy(conv);
 				return;
 			}
 			wrote += ftell(tmpfp)-i;
@@ -1247,6 +1258,7 @@ static void textview_show_html(TextView *textview, FILE *fp,
 			GTK_EVENTS_FLUSH();
 		if (textview->stop_loading) {
 			account_sigsep_matchlist_delete();
+			sc_html_parser_destroy(parser);
 			return;
 		}
 	}
@@ -1276,6 +1288,7 @@ static void textview_show_ertf(TextView *textview, FILE *fp,
 			GTK_EVENTS_FLUSH();
 		if (textview->stop_loading) {
 			account_sigsep_matchlist_delete();
+			ertf_parser_destroy(parser);
 			return;
 		}
 	}
@@ -1341,9 +1354,12 @@ static void textview_make_clickable_parts(TextView *textview,
 		{"http://",  strcasestr, get_uri_part,   make_uri_string},
 		{"https://", strcasestr, get_uri_part,   make_uri_string},
 		{"ftp://",   strcasestr, get_uri_part,   make_uri_string},
+		{"ftps://",  strcasestr, get_uri_part,   make_uri_string},
 		{"sftp://",  strcasestr, get_uri_part,   make_uri_string},
 		{"gopher://",strcasestr, get_uri_part,   make_uri_string},
 		{"www.",     strcasestr, get_uri_part,   make_http_string},
+		{"webcal://",strcasestr, get_uri_part,   make_uri_string},
+		{"webcals://",strcasestr, get_uri_part,  make_uri_string},
 		{"mailto:",  strcasestr, get_uri_part,   make_uri_string},
 		{"@",        strcasestr, get_email_part, make_email_string}
 	};
@@ -1465,9 +1481,12 @@ static void textview_make_clickable_parts_later(TextView *textview,
 		{"http://",  strcasestr, get_uri_part,   make_uri_string},
 		{"https://", strcasestr, get_uri_part,   make_uri_string},
 		{"ftp://",   strcasestr, get_uri_part,   make_uri_string},
+		{"ftps://",  strcasestr, get_uri_part,   make_uri_string},
 		{"sftp://",  strcasestr, get_uri_part,   make_uri_string},
 		{"www.",     strcasestr, get_uri_part,   make_http_string},
 		{"mailto:",  strcasestr, get_uri_part,   make_uri_string},
+		{"webcal://",strcasestr, get_uri_part,   make_uri_string},
+		{"webcals://",strcasestr, get_uri_part,  make_uri_string},
 		{"@",        strcasestr, get_email_part, make_email_string}
 	};
 	const gint PARSE_ELEMS = sizeof parser / sizeof parser[0];
@@ -1822,7 +1841,7 @@ void textview_set_font(TextView *textview, const gchar *codeset)
 	font_desc = pango_font_description_from_string
 					(NORMAL_FONT);
 	if (font_desc) {
-		gtk_widget_modify_font(textview->text, font_desc);
+		gtk_widget_override_font(textview->text, font_desc);
 		CHANGE_TAG_FONT("header", font_desc);
 		CHANGE_TAG_FONT("hlink", font_desc);
 		pango_font_description_free(font_desc);
@@ -1848,7 +1867,7 @@ void textview_set_font(TextView *textview, const gchar *codeset)
 		font_desc = pango_font_description_from_string
 						(prefs_common.textfont);
 		if (font_desc) {
-			gtk_widget_modify_font(textview->text, font_desc);
+			gtk_widget_override_font(textview->text, font_desc);
 			pango_font_description_free(font_desc);
 		}
 	}
@@ -1973,7 +1992,7 @@ static void textview_show_avatar(TextView *textview)
 	GtkAllocation allocation;
 	GtkTextView *text = GTK_TEXT_VIEW(textview->text);
 	MsgInfo *msginfo = textview->messageview->msginfo;
-	int x = 0;
+	gint x, wx, wy;
 	AvatarRender *avatarr;
 	
 	if (prefs_common.display_header_pane || !prefs_common.display_xface)
@@ -1995,13 +2014,18 @@ static void textview_show_avatar(TextView *textview)
 	avatarr->image = NULL; /* avoid destroying */
 	avatars_avatarrender_free(avatarr);
 
+	gtk_widget_set_name(GTK_WIDGET(textview->image), "textview_avatar");
 	gtk_widget_show(textview->image);
 	
 	gtk_widget_get_allocation(textview->text, &allocation);
-	x = allocation.width - WIDTH -5;
+	x = allocation.width - WIDTH - 5;
+
+	gtk_text_view_buffer_to_window_coords(
+		GTK_TEXT_VIEW(textview->text),
+		GTK_TEXT_WINDOW_TEXT, x, 5, &wx, &wy);
 
 	gtk_text_view_add_child_in_window(text, textview->image, 
-		GTK_TEXT_WINDOW_TEXT, x, 5);
+		GTK_TEXT_WINDOW_TEXT, wx, wy);
 
 	gtk_widget_show_all(textview->text);
 
@@ -2017,21 +2041,26 @@ void textview_show_icon(TextView *textview, const gchar *stock_id)
 {
 	GtkAllocation allocation;
 	GtkTextView *text = GTK_TEXT_VIEW(textview->text);
-	int x = 0;
+	gint x, wx, wy;
 	
 	if (textview->image) 
 		gtk_widget_destroy(textview->image);
 	
-	textview->image = gtk_image_new_from_stock(stock_id, GTK_ICON_SIZE_DIALOG);
+	textview->image = gtk_image_new_from_icon_name(stock_id, GTK_ICON_SIZE_DIALOG);
 	cm_return_if_fail(textview->image != NULL);
 
+	gtk_widget_set_name(GTK_WIDGET(textview->image), "textview_icon");
 	gtk_widget_show(textview->image);
 	
 	gtk_widget_get_allocation(textview->text, &allocation);
-	x = allocation.width - WIDTH -5;
+	x = allocation.width - WIDTH - 5;
+
+	gtk_text_view_buffer_to_window_coords(
+		GTK_TEXT_VIEW(textview->text),
+		GTK_TEXT_WINDOW_TEXT, x, 5, &wx, &wy);
 
 	gtk_text_view_add_child_in_window(text, textview->image, 
-		GTK_TEXT_WINDOW_TEXT, x, 5);
+		GTK_TEXT_WINDOW_TEXT, wx, wy);
 
 	gtk_widget_show_all(textview->text);
 	
@@ -2062,7 +2091,7 @@ static void textview_save_contact_pic(TextView *textview)
 	if (!is_file_exist(filename)) {
 		gdk_pixbuf_save(picture, filename, "png", &error, NULL);
 		if (error) {
-			g_warning("Failed to save image: %s",
+			g_warning("failed to save image: %s",
 					error->message);
 			g_error_free(error);
 		}
@@ -2078,7 +2107,7 @@ static void textview_show_contact_pic(TextView *textview)
 #ifndef USE_ALT_ADDRBOOK
 	MsgInfo *msginfo = textview->messageview->msginfo;
 	GtkTextView *text = GTK_TEXT_VIEW(textview->text);
-	int x = 0;
+	gint x, wx, wy;
 	gchar *filename = NULL;
 	GError *error = NULL;
 	GdkPixbuf *picture = NULL;
@@ -2126,13 +2155,18 @@ static void textview_show_contact_pic(TextView *textview)
 	}
 	cm_return_if_fail(textview->image != NULL);
 
+	gtk_widget_set_name(GTK_WIDGET(textview->image), "textview_contact_pic");
 	gtk_widget_show(textview->image);
 	
 	gtk_widget_get_allocation(textview->text, &allocation);
-	x = allocation.width - WIDTH -5;
+	x = allocation.width - WIDTH - 5;
+
+	gtk_text_view_buffer_to_window_coords(
+		GTK_TEXT_VIEW(textview->text),
+		GTK_TEXT_WINDOW_TEXT, x, 5, &wx, &wy);
 
 	gtk_text_view_add_child_in_window(text, textview->image, 
-		GTK_TEXT_WINDOW_TEXT, x, 5);
+		GTK_TEXT_WINDOW_TEXT, wx, wy);
 
 	gtk_widget_show_all(textview->text);
 	
@@ -2329,7 +2363,7 @@ gboolean textview_search_string_backward(TextView *textview, const gchar *str,
 void textview_scroll_one_line(TextView *textview, gboolean up)
 {
 	GtkTextView *text = GTK_TEXT_VIEW(textview->text);
-	GtkAdjustment *vadj = gtk_text_view_get_vadjustment(text);
+	GtkAdjustment *vadj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(text));
 
 	gtkutils_scroll_one_line(GTK_WIDGET(text), vadj, up);
 }
@@ -2337,7 +2371,7 @@ void textview_scroll_one_line(TextView *textview, gboolean up)
 gboolean textview_scroll_page(TextView *textview, gboolean up)
 {
 	GtkTextView *text = GTK_TEXT_VIEW(textview->text);
-	GtkAdjustment *vadj = gtk_text_view_get_vadjustment(text);
+	GtkAdjustment *vadj = gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(text));
 
 	return gtkutils_scroll_page(GTK_WIDGET(text), vadj, up);
 }
@@ -2441,7 +2475,6 @@ static gboolean textview_motion_notify(GtkWidget *widget,
 	if (textview->loading)
 		return FALSE;
 	textview_uri_update(textview, event->x, event->y);
-	gdk_window_get_pointer(gtk_widget_get_window(widget), NULL, NULL, NULL);
 
 	return FALSE;
 }
@@ -2463,6 +2496,8 @@ static gboolean textview_visibility_notify(GtkWidget *widget,
 {
 	gint wx, wy;
 	GdkWindow *window;
+	GdkDisplay *display;
+	GdkSeat *seat;
 
 	if (textview->loading)
 		return FALSE;
@@ -2474,7 +2509,10 @@ static gboolean textview_visibility_notify(GtkWidget *widget,
 	if (window != event->window)
 		return FALSE;
 	
-	gdk_window_get_pointer(gtk_widget_get_window(widget), &wx, &wy, NULL);
+	display = gdk_window_get_display(window);
+	seat = gdk_display_get_default_seat(display);
+	gdk_device_get_position(gdk_seat_get_pointer(seat),
+			NULL, &wx, &wy);
 	textview_uri_update(textview, wx, wy);
 
 	return FALSE;
@@ -2573,6 +2611,163 @@ static void textview_uri_update(TextView *textview, gint x, gint y)
 			TEXTVIEW_STATUSBAR_PUSH(textview, uri->uri);
 		}
 	}
+}
+
+static void textview_set_font_zoom(TextView *textview)
+{
+	PangoFontDescription *font;
+	gint size;
+
+	/* do nothing if no zoom level has been set */
+	if (textview_font_size_percent == TEXTVIEW_FONT_SIZE_UNSET)
+		return;
+
+	font = pango_font_description_from_string
+						(prefs_common.textfont);
+	cm_return_if_fail(font);
+
+	if (textview_font_size_default == TEXTVIEW_FONT_SIZE_UNSET)
+		textview_font_size_default = pango_font_description_get_size(font);
+
+	size = textview_font_size_default + ( textview_font_size_default / 100 * textview_font_size_percent );
+
+	pango_font_description_set_size(font, size);
+	gtk_widget_override_font(textview->text, font);
+	pango_font_description_free(font);
+}
+
+static void textview_zoom(GtkWidget *widget, gboolean zoom_in)
+{
+	PangoContext *pctx;
+	PangoFontDescription *font;
+	gint size;
+
+	pctx = gtk_widget_get_pango_context(widget);
+	font = pango_context_get_font_description(pctx);
+	size = pango_font_description_get_size(font);
+
+	/* save the default font size first time before zooming */
+	if (textview_font_size_default == TEXTVIEW_FONT_SIZE_UNSET)
+		textview_font_size_default = size;
+
+	if (textview_font_size_percent == TEXTVIEW_FONT_SIZE_UNSET)
+		textview_font_size_percent = 0;
+
+	if (zoom_in) {
+		if ((textview_font_size_percent + TEXTVIEW_FONT_SIZE_STEP ) <= TEXTVIEW_FONT_SIZE_MAX)
+			textview_font_size_percent += TEXTVIEW_FONT_SIZE_STEP;
+	} else {
+		if ((textview_font_size_percent - TEXTVIEW_FONT_SIZE_STEP ) >= TEXTVIEW_FONT_SIZE_MIN)
+			textview_font_size_percent -= TEXTVIEW_FONT_SIZE_STEP;
+	}
+	size = textview_font_size_default + ( textview_font_size_default / 100 * textview_font_size_percent );
+
+	pango_font_description_set_size(font, size);
+	gtk_widget_override_font(widget, font);
+	gtk_widget_show(widget);
+}
+
+static void textview_zoom_in(GtkWidget *widget, gpointer data)
+{
+	textview_zoom(GTK_WIDGET(data), TRUE);
+}
+
+static void textview_zoom_out(GtkWidget *widget, gpointer data)
+{
+	textview_zoom(GTK_WIDGET(data), FALSE);
+}
+
+static void textview_zoom_reset(GtkWidget *widget, gpointer data)
+{
+	PangoContext *pctx;
+	PangoFontDescription *font;
+	gint size;
+
+	pctx = gtk_widget_get_pango_context(GTK_WIDGET(data));
+	font = pango_context_get_font_description(pctx);
+
+	/* reset and save the value for current session */
+	if (textview_font_size_default == TEXTVIEW_FONT_SIZE_UNSET || textview_font_size_percent == TEXTVIEW_FONT_SIZE_UNSET) 
+		return;
+
+	textview_font_size_percent = 0;
+	size = textview_font_size_default + ( textview_font_size_default / 100 * textview_font_size_percent );
+
+	pango_font_description_set_size(font, size);
+	gtk_widget_override_font(GTK_WIDGET(data), font);
+	gtk_widget_show(GTK_WIDGET(data));
+}
+
+static void textview_populate_popup(GtkTextView* textview,
+						 GtkMenu *menu,
+						 gpointer user_data)
+{
+	GtkWidget *menuitem;
+	
+	cm_return_if_fail(menu != NULL);
+	cm_return_if_fail(GTK_IS_MENU_SHELL(menu));
+
+	menuitem = gtk_separator_menu_item_new();
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+	gtk_widget_show(menuitem);
+
+	menuitem = gtk_menu_item_new_with_mnemonic(_("Zoom _In"));
+	g_signal_connect(G_OBJECT(menuitem), "activate",
+			 G_CALLBACK(textview_zoom_in), textview);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+	gtk_widget_set_sensitive(menuitem,
+			textview_font_size_percent == TEXTVIEW_FONT_SIZE_UNSET ||
+			((textview_font_size_percent + TEXTVIEW_FONT_SIZE_STEP ) <= TEXTVIEW_FONT_SIZE_MAX));
+	gtk_widget_show(menuitem);
+
+	menuitem = gtk_menu_item_new_with_mnemonic(_("Zoom _Out"));
+	g_signal_connect(G_OBJECT(menuitem), "activate",
+			 G_CALLBACK(textview_zoom_out), textview);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+	gtk_widget_set_sensitive(menuitem,
+			textview_font_size_percent == TEXTVIEW_FONT_SIZE_UNSET ||
+			((textview_font_size_percent - TEXTVIEW_FONT_SIZE_STEP ) >= TEXTVIEW_FONT_SIZE_MIN));
+	gtk_widget_show(menuitem);
+
+	menuitem = gtk_menu_item_new_with_mnemonic(_("Reset _zoom"));
+	g_signal_connect(G_OBJECT(menuitem), "activate",
+			 G_CALLBACK(textview_zoom_reset), textview);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+	gtk_widget_set_sensitive(menuitem,
+			(textview_font_size_percent != TEXTVIEW_FONT_SIZE_UNSET && textview_font_size_percent != 0));
+	gtk_widget_show(menuitem);
+}
+
+static gboolean textview_scrolled(GtkWidget *widget,
+				      GdkEvent *_event,
+				      gpointer user_data)
+{
+	GdkEventScroll *event = (GdkEventScroll *)_event;
+
+	/* Ctrl+mousewheel changes font size */
+	if (event->state & GDK_CONTROL_MASK || event->state & GDK_SHIFT_MASK) {
+
+		if (event->direction == GDK_SCROLL_UP) {
+			textview_zoom(widget, TRUE);
+		} else if (event->direction == GDK_SCROLL_DOWN) {
+			textview_zoom(widget, FALSE);
+		} else {
+			gdouble x, y;
+
+			if ((event->direction == GDK_SCROLL_SMOOTH) &&
+					gdk_event_get_scroll_deltas((GdkEvent *)event, &x, &y)) {
+				if (y < 0)
+					textview_zoom(widget, TRUE);
+				else
+					if (y >0)
+						textview_zoom(widget, FALSE);
+			} else
+				return FALSE; /* Scrolling left or right */
+		}
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 static gboolean textview_get_uri_range(TextView *textview,
@@ -2801,9 +2996,7 @@ static gboolean textview_uri_button_pressed(GtkTextTag *tag, GObject *obj,
 				g_object_set_data(
 					G_OBJECT(textview->mail_popup_menu),
 					"menu_button", uri);
-				gtk_menu_popup(GTK_MENU(textview->mail_popup_menu), 
-					       NULL, NULL, NULL, NULL, 
-					       bevent->button, bevent->time);
+				gtk_menu_popup_at_pointer(GTK_MENU(textview->mail_popup_menu), NULL);
 			} else {
 				PrefsAccount *account = NULL;
 				FolderItem   *folder_item = NULL;
@@ -2826,16 +3019,14 @@ static gboolean textview_uri_button_pressed(GtkTextTag *tag, GObject *obj,
 			return TRUE;
 		} else if (g_ascii_strncasecmp(uri->uri, "file:", 5)) {
 			if (bevent->button == 1 &&
-			    textview_uri_security_check(textview, uri) == TRUE) 
+			    textview_uri_security_check(textview, uri, FALSE) == TRUE) 
 					open_uri(uri->uri,
 						 prefs_common_get_uri_cmd());
 			else if (bevent->button == 3 && !qlink) {
 				g_object_set_data(
 					G_OBJECT(textview->link_popup_menu),
 					"menu_button", uri);
-				gtk_menu_popup(GTK_MENU(textview->link_popup_menu), 
-					       NULL, NULL, NULL, NULL, 
-					       bevent->button, bevent->time);
+				gtk_menu_popup_at_pointer(GTK_MENU(textview->link_popup_menu), NULL);
 			}
 			return TRUE;
 		} else {
@@ -2843,9 +3034,7 @@ static gboolean textview_uri_button_pressed(GtkTextTag *tag, GObject *obj,
 				g_object_set_data(
 					G_OBJECT(textview->file_popup_menu),
 					"menu_button", uri);
-				gtk_menu_popup(GTK_MENU(textview->file_popup_menu), 
-					       NULL, NULL, NULL, NULL, 
-					       bevent->button, bevent->time);
+				gtk_menu_popup_at_pointer(GTK_MENU(textview->file_popup_menu), NULL);
 				return TRUE;
 			}
 		}
@@ -2879,7 +3068,7 @@ gchar *textview_get_visible_uri		(TextView 	*textview,
  *\return   gboolean TRUE if the URL is ok, or if the user chose to open
  *          it anyway, otherwise FALSE          
  */
-gboolean textview_uri_security_check(TextView *textview, ClickableText *uri)
+gboolean textview_uri_security_check(TextView *textview, ClickableText *uri, gboolean copied)
 {
 	gchar *visible_str;
 	gboolean retval = TRUE;
@@ -2904,8 +3093,13 @@ gboolean textview_uri_security_check(TextView *textview, ClickableText *uri)
 	}
 
 	if (retval == FALSE) {
+		gchar *open_or_cp;
+		gchar *open_or_cp_btn;
 		gchar *msg;
 		AlertValue aval;
+		
+		open_or_cp = copied? _("Copy it anyway?") : _("Open it anyway?");
+		open_or_cp_btn = copied? _("Co_py URL") : _("_Open URL");
 
 		msg = g_markup_printf_escaped("%s\n\n"
 						"<b>%s</b> %s\n\n"
@@ -2914,10 +3108,10 @@ gboolean textview_uri_security_check(TextView *textview, ClickableText *uri)
 						_("The real URL is different from the displayed URL."),
 						_("Displayed URL:"), visible_str,
 						_("Real URL:"), uri->uri,
-						_("Open it anyway?"));
+						open_or_cp);
 		aval = alertpanel_full(_("Phishing attempt warning"), msg,
-				       GTK_STOCK_CANCEL, _("_Open URL"), NULL, ALERTFOCUS_FIRST,
-							 FALSE, NULL, ALERT_WARNING);
+				       NULL, _("_Cancel"), NULL, open_or_cp_btn, NULL, NULL,
+				       ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING);
 		g_free(msg);
 		if (aval == G_ALERTALTERNATE)
 			retval = TRUE;
@@ -2958,7 +3152,7 @@ static void open_uri_cb (GtkAction *action, TextView *textview)
 					   "raw_url");
 
 	if (uri) {
-		if (textview_uri_security_check(textview, uri) == TRUE) 
+		if (textview_uri_security_check(textview, uri, FALSE) == TRUE) 
 			open_uri(uri->uri,
 				 prefs_common_get_uri_cmd());
 		g_object_set_data(G_OBJECT(textview->link_popup_menu), "menu_button",
@@ -2978,7 +3172,7 @@ static void copy_uri_cb	(GtkAction *action, TextView *textview)
 	const gchar *raw_url =  g_object_get_data(G_OBJECT(textview->link_popup_menu),
 					   "raw_url");
 	if (uri) {
-		if (textview_uri_security_check(textview, uri) == TRUE) {
+		if (textview_uri_security_check(textview, uri, TRUE) == TRUE) {
 			gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_PRIMARY), uri->uri, -1);
 			gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), uri->uri, -1);
 			g_object_set_data(G_OBJECT(textview->link_popup_menu), "menu_button", NULL);

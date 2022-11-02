@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2018 the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,10 +18,6 @@
 
 #ifndef __PROXY_H__
 #define __PROXY_H__
-
-#ifdef HAVE_CONFIG_H
-#  include "config.h"
-#endif
 
 #include <glib.h>
 

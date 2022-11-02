@@ -1,6 +1,6 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,7 +57,9 @@
 #include "log.h"
 #include "passwordstore.h"
 #include "file-utils.h"
+#ifdef USE_OAUTH2
 #include "oauth2.h"
+#endif
 
 typedef struct _SendProgressDialog	SendProgressDialog;
 
@@ -282,26 +284,27 @@ gint send_message_smtp_full(PrefsAccount *ac_prefs, GSList *to_list, FILE *fp, g
 		    strlen(ac_prefs->gnutls_priority))
 			session->gnutls_priority = g_strdup(ac_prefs->gnutls_priority);
 		session->use_tls_sni = ac_prefs->use_tls_sni;
+#ifdef USE_OAUTH2
+		if (ac_prefs->use_smtp_auth && ac_prefs->smtp_auth_type == SMTPAUTH_OAUTH2)
+		        oauth2_check_passwds(ac_prefs);
+#endif
 #else
 		if (ac_prefs->ssl_smtp != SSL_NONE) {
 			if (alertpanel_full(_("Insecure connection"),
 				_("This connection is configured to be secured "
-				  "using SSL/TLS, but SSL/TLS is not available "
+				  "using TLS, but TLS is not available "
 				  "in this build of Claws Mail. \n\n"
 				  "Do you want to continue connecting to this "
 				  "server? The communication would not be "
 				  "secure."),
-				  GTK_STOCK_CANCEL, _("Con_tinue connecting"), NULL,
-					ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE) {
+				  NULL, _("_Cancel"), NULL, _("Con_tinue connecting"),
+				  NULL, NULL, ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE) {
 				session_destroy(session);
 				return -1;
 			}
 		}
 		port = ac_prefs->set_smtpport ? ac_prefs->smtpport : SMTP_PORT;
 #endif
-		
-		if(ac_prefs->use_smtp_auth && ac_prefs->smtp_auth_type == SMTPAUTH_OAUTH2)
-		        oauth2_check_passwds (ac_prefs);
 
 		if (ac_prefs->use_smtp_auth) {
 			smtp_session->forced_auth_type = ac_prefs->smtp_auth_type;
@@ -601,8 +604,8 @@ static void send_progress_dialog_size_allocate_cb(GtkWidget *widget,
 {
 	cm_return_if_fail(allocation != NULL);
 
-	prefs_common.sendwin_width = allocation->width;
-	prefs_common.sendwin_height = allocation->height;
+	gtk_window_get_size(GTK_WINDOW(widget),
+		&prefs_common.sendwin_width, &prefs_common.sendwin_height);
 }
 
 static SendProgressDialog *send_progress_dialog_create(void)

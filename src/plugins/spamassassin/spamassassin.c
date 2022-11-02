@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2012 the Claws Mail Team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -418,6 +418,7 @@ int spamassassin_learn(MsgInfo *msginfo, GSList *msglist, gboolean spam)
 		return -1;
 	}
 
+	/* process *either* a msginfo or a msglist */
 	if (msginfo) {
 		file = procmsg_get_message_file(msginfo);
 		if (file == NULL) {
@@ -435,53 +436,55 @@ int spamassassin_learn(MsgInfo *msginfo, GSList *msglist, gboolean spam)
 							prefs_common_get_prefs()->work_offline?" -L":"",
 							spam?"--spam":"--ham", file);
 		}
-	}
-	if (msglist) {
-		GSList *cur = msglist;
-		MsgInfo *info;
+	} else {
+		if (msglist) {
+			GSList *cur = msglist;
+			MsgInfo *info;
 
-		if (config.transport == SPAMASSASSIN_TRANSPORT_TCP) {
-			/* execute n-times the spamc command */
-			for (; cur; cur = cur->next) {
-				info = (MsgInfo *)cur->data;
-				gchar *tmpcmd = NULL;
-				gchar *tmpfile = get_tmp_file();
+			if (config.transport == SPAMASSASSIN_TRANSPORT_TCP) {
+				/* execute n-times the spamc command */
+				for (; cur; cur = cur->next) {
+					info = (MsgInfo *)cur->data;
+					gchar *tmpcmd = NULL;
+					gchar *tmpfile = get_tmp_file();
 
-				if (spamc_wrapper == NULL) {
-					spamc_wrapper = spamassassin_create_tmp_spamc_wrapper(spam);
+					if (spamc_wrapper == NULL) {
+						spamc_wrapper = spamassassin_create_tmp_spamc_wrapper(spam);
+					}
+
+					if (spamc_wrapper && tmpfile &&
+				    	copy_file(procmsg_get_message_file(info), tmpfile, TRUE) == 0) {
+						tmpcmd = g_strconcat(shell?shell:"sh", " ", spamc_wrapper, " ",
+											tmpfile, NULL);
+						debug_print("%s\n", tmpcmd);
+						execute_command_line(tmpcmd, FALSE, NULL);
+						g_free(tmpcmd);
+					}
+					g_free(tmpfile);
 				}
+				if (spamc_wrapper)
+					g_free(spamc_wrapper);
+				return 0;
+			} else {
+				cmd = g_strdup_printf("sa-learn -u %s%s %s",
+						config.username,
+						prefs_common_get_prefs()->work_offline?" -L":"",
+						spam?"--spam":"--ham");
 
-				if (spamc_wrapper && tmpfile &&
-			    	copy_file(procmsg_get_message_file(info), tmpfile, TRUE) == 0) {
-					tmpcmd = g_strconcat(shell?shell:"sh", " ", spamc_wrapper, " ",
-										tmpfile, NULL);
-					debug_print("%s\n", tmpcmd);
-					execute_command_line(tmpcmd, FALSE, NULL);
-					g_free(tmpcmd);
+				/* concatenate all message tmpfiles to the sa-learn command-line */
+				for (; cur; cur = cur->next) {
+					info = (MsgInfo *)cur->data;
+					gchar *tmpcmd = NULL;
+					gchar *tmpfile = get_tmp_file();
+
+					if (tmpfile &&
+				    	copy_file(procmsg_get_message_file(info), tmpfile, TRUE) == 0) {			
+						tmpcmd = g_strconcat(cmd, " ", tmpfile, NULL);
+						g_free(cmd);
+						cmd = tmpcmd;
+					}
+					g_free(tmpfile);
 				}
-				g_free(tmpfile);
-			}
-			g_free(spamc_wrapper);
-			return 0;
-		} else {
-			cmd = g_strdup_printf("sa-learn -u %s%s %s",
-					config.username,
-					prefs_common_get_prefs()->work_offline?" -L":"",
-					spam?"--spam":"--ham");
-
-			/* concatenate all message tmpfiles to the sa-learn command-line */
-			for (; cur; cur = cur->next) {
-				info = (MsgInfo *)cur->data;
-				gchar *tmpcmd = NULL;
-				gchar *tmpfile = get_tmp_file();
-
-				if (tmpfile &&
-			    	copy_file(procmsg_get_message_file(info), tmpfile, TRUE) == 0) {			
-					tmpcmd = g_strconcat(cmd, " ", tmpfile, NULL);
-					g_free(cmd);
-					cmd = tmpcmd;
-				}
-				g_free(tmpfile);
 			}
 		}
 	}
@@ -492,7 +495,8 @@ int spamassassin_learn(MsgInfo *msginfo, GSList *msglist, gboolean spam)
 	/* only run sync calls to sa-learn/spamc to prevent system lockdown */
 	execute_command_line(cmd, FALSE, NULL);
 	g_free(cmd);
-	g_free(spamc_wrapper);
+	if (spamc_wrapper)
+		g_free(spamc_wrapper);
 
 	return 0;
 }
@@ -511,7 +515,7 @@ void spamassassin_save_config(void)
 		return;
 
 	if (prefs_write_param(param, pfile->fp) < 0) {
-		g_warning("Failed to write SpamAssassin configuration to file");
+		g_warning("failed to write SpamAssassin configuration to file");
 		prefs_file_close_revert(pfile);
 		return;
 	}
@@ -624,7 +628,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)
@@ -651,7 +655,7 @@ void spamassassin_register_hook(void)
 	if (hook_id == HOOK_NONE)
 		hook_id = hooks_register_hook(MAIL_FILTERING_HOOKLIST, mail_filtering_hook, NULL);
 	if (hook_id == HOOK_NONE) {
-		g_warning("Failed to register mail filtering hook");
+		g_warning("failed to register mail filtering hook");
 		config.process_emails = FALSE;
 	}
 }

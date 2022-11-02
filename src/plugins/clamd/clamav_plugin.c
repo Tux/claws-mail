@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2003-2017 Michael Rasmussen and the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -86,15 +86,15 @@ static gboolean scan_func(GNode *node, gpointer data)
 	response buf;
 	int max;
 	GStatBuf info;
-	gchar* msg;
+	gchar* msg, *name;
 
 	outfile = procmime_get_tmp_file_name(mimeinfo);
 	if (procmime_get_part(outfile, mimeinfo) < 0)
-		g_warning("Can't get the part of multipart message.");
+		g_warning("can't get the part of multipart message");
 	else {
     	max = config.clamav_max_size * 1048576; /* maximum file size */
 		if (g_stat(outfile, &info) == -1)
-			g_warning("Can't determine file size");
+			g_warning("can't determine file size");
 		else {
 			if (info.st_size <= max) {
 				debug_print("Scanning %s\n", outfile);
@@ -102,7 +102,7 @@ static gboolean scan_func(GNode *node, gpointer data)
 				debug_print("status: %d\n", result->status);
 				switch (result->status) {
 					case NO_SOCKET: 
-						g_warning("[scanning] No socket information");
+						g_warning("[scanning] no socket information");
 						if (config.alert_ack) {
 						    alertpanel_error(_("Scanning\nNo socket information.\nAntivirus disabled."));
 						    config.alert_ack = FALSE;
@@ -116,8 +116,10 @@ static gboolean scan_func(GNode *node, gpointer data)
 						}
 						break;
 					case VIRUS: 
+						name = clamd_get_virus_name(buf.msg);
 						msg = g_strconcat(_("Detected %s virus."),
-							clamd_get_virus_name(buf.msg), NULL);
+							name, NULL);
+						g_free(name);
 						g_warning("%s", msg);
 						debug_print("no_recv: %d\n", prefs_common_get_prefs()->no_recv_err_panel);
 						if (prefs_common_get_prefs()->no_recv_err_panel) {
@@ -149,7 +151,8 @@ static gboolean scan_func(GNode *node, gpointer data)
 				g_free(msg);
 			}
 		}
-		g_unlink(outfile);
+		if (g_unlink(outfile) < 0)
+                        FILE_OP_ERROR(outfile, "g_unlink");
 	}
 	
 	return (result->status == OK) ? FALSE : TRUE;
@@ -294,7 +297,7 @@ gint plugin_init(gchar **error)
 		Clamd_Stat status = clamd_prepare();
 		switch (status) {
 			case NO_SOCKET: 
-				g_warning("[init] No socket information");
+				g_warning("[init] no socket information");
 				alertpanel_error(_("Init\nNo socket information.\nAntivirus disabled."));
 				break;
 			case NO_CONNECTION:
@@ -353,7 +356,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)

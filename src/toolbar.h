@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2001-2017 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -127,11 +127,7 @@ struct _ToolbarItem {
 	while (item_list != NULL) { \
 		item = (ToolbarItem*)item_list->data; \
 		item_list = g_slist_remove(item_list, item); \
-		if (item->file) \
-			g_free(item->file); \
-		if (item->text) \
-			g_free(item->text); \
-		g_free(item);\
+		toolbar_item_destroy(item); \
 	}\
 	g_slist_free(item_list);\
 }
@@ -186,6 +182,7 @@ enum {
 	A_ALL_UNREAD,
 	A_READ,
 	A_UNREAD,
+	A_RUN_PROCESSING,
 
 	A_PRINT,
 	A_LEARN_SPAM,
@@ -281,6 +278,8 @@ void	toolbar_set_style		(GtkWidget	*toolbar_wid,
 					 GtkWidget	*handlebox_wid,
 					 guint		 action);
 void 	toolbar_destroy			(Toolbar	*toolbar);
+void 	toolbar_item_destroy		(ToolbarItem	*toolbar_item);
+
 void toolbar_set_learn_button		(Toolbar	*toolbar, 
 					 LearnButtonType  learn_btn_type);
 const gchar *toolbar_get_short_text	(int action);

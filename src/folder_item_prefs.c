@@ -1,6 +1,6 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,10 @@
 FolderItemPrefs tmp_prefs;
 
 static PrefParam param[] = {
+	{"enable_default_from", "", &tmp_prefs.enable_default_from, P_BOOL,
+	 NULL, NULL, NULL},
+	{"default_from", "", &tmp_prefs.default_from, P_STRING,
+	 NULL, NULL, NULL},
 	{"enable_default_to", "", &tmp_prefs.enable_default_to, P_BOOL,
 	 NULL, NULL, NULL},
 	{"default_to", "", &tmp_prefs.default_to, P_STRING,
@@ -99,6 +103,8 @@ static PrefParam param[] = {
 	{"remove_old_bodies", "FALSE", &tmp_prefs.remove_old_bodies, P_BOOL,
 	 NULL, NULL, NULL},
 	{"promote_html_part", "0", &tmp_prefs.promote_html_part, P_ENUM,
+	 NULL, NULL, NULL},
+	{"skip_on_goto_unread_or_new", "FALSE", &tmp_prefs.skip_on_goto_unread_or_new, P_BOOL,
 	 NULL, NULL, NULL},
 
 	{"compose_with_format", "FALSE", &tmp_prefs.compose_with_format, P_BOOL,
@@ -185,6 +191,8 @@ void folder_prefs_save_config_recursive(Folder *folder)
 
 static FolderItemPrefs *folder_item_prefs_clear(FolderItemPrefs *prefs)
 {
+	prefs->enable_default_from = FALSE;
+	prefs->default_from = NULL;
 	prefs->enable_default_to = FALSE;
 	prefs->default_to = NULL;
 	prefs->enable_default_reply_to = FALSE;
@@ -210,17 +218,21 @@ static FolderItemPrefs *folder_item_prefs_clear(FolderItemPrefs *prefs)
 	prefs->always_sign = SIGN_OR_ENCRYPT_DEFAULT;
 	prefs->always_encrypt = SIGN_OR_ENCRYPT_DEFAULT;
 	prefs->save_copy_to_folder = FALSE;
-	prefs->color = 0;
 
 	prefs->enable_processing = FALSE;
 	prefs->enable_processing_when_opening = FALSE;
 	prefs->processing = NULL;
+	prefs->color.red = 0;
+	prefs->color.green = 0;
+	prefs->color.blue = 0;
+	prefs->color.alpha = 1;
 
 	prefs->newmailcheck = TRUE;
 	prefs->offlinesync = FALSE;
 	prefs->offlinesync_days = 0;
 	prefs->remove_old_bodies = FALSE;
 	prefs->promote_html_part = HTML_PROMOTE_DEFAULT;
+	prefs->skip_on_goto_unread_or_new = FALSE;
 
 	prefs->compose_with_format = FALSE;
 	prefs->compose_subject_format = NULL;
@@ -248,6 +260,7 @@ FolderItemPrefs * folder_item_prefs_new(void)
 
 void folder_item_prefs_free(FolderItemPrefs * prefs)
 {
+	g_free(prefs->default_from);
 	g_free(prefs->default_to);
 	g_free(prefs->default_reply_to);
 	g_free(prefs->default_cc);
@@ -281,6 +294,7 @@ void folder_item_prefs_copy_prefs(FolderItem * src, FolderItem * dest)
 	tmp_prefs.offlinesync_days              = src->prefs->offlinesync_days;
 	tmp_prefs.remove_old_bodies             = src->prefs->remove_old_bodies;
 	tmp_prefs.promote_html_part             = src->prefs->promote_html_part;
+	tmp_prefs.skip_on_goto_unread_or_new    = src->prefs->skip_on_goto_unread_or_new;
 
 	prefs_matcher_read_config();
 
@@ -294,6 +308,8 @@ void folder_item_prefs_copy_prefs(FolderItem * src, FolderItem * dest)
 	tmp_prefs.processing			= tmp_prop_list;
 	
 	tmp_prefs.request_return_receipt	= src->prefs->request_return_receipt;
+	tmp_prefs.enable_default_from		= src->prefs->enable_default_from;
+	tmp_prefs.default_from			= g_strdup(src->prefs->default_from);
 	tmp_prefs.enable_default_to		= src->prefs->enable_default_to;
 	tmp_prefs.default_to			= g_strdup(src->prefs->default_to);
 	tmp_prefs.enable_default_reply_to	= src->prefs->enable_default_reply_to;

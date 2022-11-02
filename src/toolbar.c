@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2001-2017 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2001-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -171,6 +171,9 @@ static void toolbar_read_cb	   	(GtkWidget	*widget,
 static void toolbar_unread_cb	   	(GtkWidget	*widget,
 					    	 gpointer 	 data);
 
+static void toolbar_run_processing_cb	   	(GtkWidget	*widget,
+					    	 gpointer 	 data);
+
 static void toolbar_print_cb			(GtkWidget	*widget,
 					    	 gpointer 	 data);
 
@@ -249,6 +252,7 @@ struct {
 	{ "A_ALL_UNREAD",		N_("Mark all Messages as unread")          },
 	{ "A_READ", 			N_("Mark Message as read")                 },
 	{ "A_UNREAD", 			N_("Mark Message as unread")               },
+	{ "A_RUN_PROCESSING",	N_("Run folder processing rules")          },
 
 	{ "A_PRINT",	     	N_("Print")                                },
 	{ "A_LEARN_SPAM",       N_("Learn Spam or Ham")                    },
@@ -376,10 +380,11 @@ GList *toolbar_get_action_items(ToolbarType source)
 					A_COMPOSE_EMAIL, A_REPLY_MESSAGE, A_REPLY_SENDER,
 					A_REPLY_ALL,     A_REPLY_ML,      A_OPEN_MAIL,     A_FORWARD,
 					A_TRASH,         A_DELETE_REAL,   A_DELETE_DUP,    A_EXECUTE,
-                    A_GOTO_PREV,     A_GOTO_NEXT,     A_IGNORE_THREAD, A_WATCH_THREAD,
-                    A_MARK,          A_UNMARK,        A_LOCK,          A_UNLOCK,
-                    A_ALL_READ,      A_ALL_UNREAD,    A_READ,          A_UNREAD,
-                    A_PRINT,         A_ADDRBOOK,      A_LEARN_SPAM,    A_GO_FOLDERS,
+					A_GOTO_PREV,     A_GOTO_NEXT,     A_IGNORE_THREAD, A_WATCH_THREAD,
+					A_MARK,          A_UNMARK,        A_LOCK,          A_UNLOCK,
+					A_ALL_READ,      A_ALL_UNREAD,    A_READ,          A_UNREAD,
+					A_RUN_PROCESSING,
+					A_PRINT,         A_ADDRBOOK,      A_LEARN_SPAM,    A_GO_FOLDERS,
 					A_CANCEL_INC,    A_CANCEL_SEND,   A_CANCEL_ALL,    A_PREFERENCES };
 
 		for (i = 0; i < sizeof main_items / sizeof main_items[0]; i++)  {
@@ -469,15 +474,20 @@ static void toolbar_parse_item(XMLFile *file, ToolbarType source, gboolean *rewr
 			}
 		}
 		if ((item->index == -1) && !rewrite)
-			g_warning("toolbar_parse_item: unrecognized action name '%s'\n", value);
+			g_warning("toolbar_parse_item: unrecognized action name '%s'", value);
 
 		attr = g_list_next(attr);
 	}
 	if (item->index != -1) {
-		if (!toolbar_is_duplicate(item->index, source)) 
+		if (!toolbar_is_duplicate(item->index, source))  {
 			toolbar_config[source].item_list = g_slist_append(toolbar_config[source].item_list,
 									 item);
-	}
+		} else {
+			toolbar_item_destroy(item);
+		}        
+	} else {
+		toolbar_item_destroy(item);
+	}    
 }
 
 const gchar *toolbar_get_short_text(int action) {
@@ -510,6 +520,7 @@ const gchar *toolbar_get_short_text(int action) {
 	case A_ALL_UNREAD: 		return _("All unread");
 	case A_READ: 			return _("Read");
 	case A_UNREAD: 			return _("Unread");
+	case A_RUN_PROCESSING:	return _("Run proc. rules");
 
 	case A_PRINT:	 		return _("Print");
 	case A_LEARN_SPAM: 		return _("Spam");
@@ -571,6 +582,7 @@ gint toolbar_get_icon(int action) {
 	case A_ALL_UNREAD:		return STOCK_PIXMAP_MARK_ALLUNREAD;
 	case A_READ:   			return STOCK_PIXMAP_MARK_READ;
 	case A_UNREAD:   		return STOCK_PIXMAP_MARK_UNREAD;
+	case A_RUN_PROCESSING:	return STOCK_PIXMAP_DIR_OPEN;
 
 	case A_PRINT:	 		return STOCK_PIXMAP_PRINTER_BTN;
 	case A_LEARN_SPAM: 		return STOCK_PIXMAP_SPAM_BTN;
@@ -629,10 +641,15 @@ static void toolbar_set_default_generic(ToolbarType toolbar_type, DefaultToolbar
 		}
 
 		if (toolbar_item->index != -1) {
-			if (!toolbar_is_duplicate(toolbar_item->index, toolbar_type)) 
+			if (!toolbar_is_duplicate(toolbar_item->index, toolbar_type)) {
 				toolbar_config[toolbar_type].item_list = 
 					g_slist_append(toolbar_config[toolbar_type].item_list, toolbar_item);
-		}	
+			} else {
+				toolbar_item_destroy(toolbar_item);
+			}
+		} else {
+			toolbar_item_destroy(toolbar_item);
+		}
 	}
 }
 
@@ -758,10 +775,12 @@ void toolbar_save_config_file(ToolbarType source)
 		
 fail:
 		FILE_OP_ERROR(fileSpec, "fprintf");
-		g_free( fileSpec );
+		g_free(fileSpec);
 		prefs_file_close_revert (pfile);
-	} else
+	} else {
+		g_free(fileSpec);
 		g_warning("failed to open toolbar configuration file for writing");
+	}
 }
 
 void toolbar_read_config_file(ToolbarType source)
@@ -843,9 +862,7 @@ void toolbar_clear_list(ToolbarType source)
 		toolbar_config[source].item_list = 
 			g_slist_remove(toolbar_config[source].item_list, item);
 
-		g_free(item->file);
-		g_free(item->text);
-		g_free(item);	
+		toolbar_item_destroy(item);	
 	}
 	g_slist_free(toolbar_config[source].item_list);
 }
@@ -899,7 +916,7 @@ static void toolbar_action_execute(GtkWidget    *widget,
 	if (i != -1) 
 		actions_execute(data, i, widget, source);
 	else
-		g_warning ("Error: did not find Claws Action to execute");
+		g_warning("error: did not find Action to execute");
 }
 
 gboolean toolbar_check_action_btns(ToolbarType type)
@@ -1744,6 +1761,29 @@ static void toolbar_unread_cb(GtkWidget *widget, gpointer data)
 	}
 }
 
+static void toolbar_run_processing_cb(GtkWidget *widget, gpointer data)
+{
+	ToolbarItem *toolbar_item = (ToolbarItem*)data;
+	MainWindow *mainwin;
+	FolderItem *item;
+
+	cm_return_if_fail(toolbar_item != NULL);
+
+	switch (toolbar_item->type) {
+	case TOOLBAR_MAIN:
+		mainwin = (MainWindow *) toolbar_item->parent;
+		item = mainwin->summaryview->folder_item;
+		cm_return_if_fail(item != NULL);
+		item->processing_pending = TRUE;
+		folder_item_apply_processing(item);
+		item->processing_pending = FALSE;
+		break;
+	default:
+		debug_print("toolbar event not supported\n");
+		break;
+	}
+}
+
 static void toolbar_cancel_inc_cb(GtkWidget *widget, gpointer data)
 {
 	ToolbarItem *toolbar_item = (ToolbarItem*)data;
@@ -2060,6 +2100,7 @@ static void toolbar_buttons_cb(GtkWidget   *widget,
 		{ A_ALL_UNREAD,			toolbar_all_unread_cb		},
 		{ A_READ,				toolbar_read_cb				},
 		{ A_UNREAD,				toolbar_unread_cb			},
+		{ A_RUN_PROCESSING,		toolbar_run_processing_cb	},
 		{ A_PRINT,				toolbar_print_cb			},
 		{ A_LEARN_SPAM,			toolbar_learn_cb			},
 		{ A_DELETE_DUP,			toolbar_delete_dup_cb		},
@@ -2262,6 +2303,7 @@ Toolbar *toolbar_create(ToolbarType 	 type,
 
 	gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_BOTH);
 	gtk_toolbar_set_show_arrow(GTK_TOOLBAR(toolbar), TRUE);
+	gtk_widget_set_hexpand(toolbar, TRUE);
 	
 	for (cur = toolbar_list; cur != NULL; cur = cur->next) {
 
@@ -2614,7 +2656,8 @@ Toolbar *toolbar_create(ToolbarType 	 type,
 #define UNREF_ICON(icon) if (toolbar->icon != NULL) \
 			g_object_unref(toolbar->icon)
 
-void toolbar_destroy(Toolbar * toolbar) {
+void toolbar_destroy(Toolbar * toolbar)
+{
 	UNREF_ICON(compose_mail_icon);
 	UNREF_ICON(compose_news_icon);
 	UNREF_ICON(learn_spam_icon);
@@ -2624,6 +2667,17 @@ void toolbar_destroy(Toolbar * toolbar) {
 }
 
 #undef UNREF_ICON
+
+void toolbar_item_destroy(ToolbarItem *item)
+{
+	cm_return_if_fail(item != NULL);
+
+	if (item->file)
+		g_free(item->file);
+	if (item->text)
+		g_free(item->text);
+	g_free(item);
+}
 
 void toolbar_update(ToolbarType type, gpointer data)
 {
@@ -2826,8 +2880,8 @@ do { \
 	while (entry_list != NULL) {
 		Entry *e = (Entry*) entry_list->data;
 
-		g_free(e);
 		entry_list = g_slist_remove(entry_list, e);
+		g_free(e);
 	}
 
 	/* match any bit flags */
@@ -2848,8 +2902,8 @@ do { \
 	while (entry_list != NULL) {
 		Entry *e = (Entry*) entry_list->data;
 
-		g_free(e);
 		entry_list = g_slist_remove(entry_list, e);
+		g_free(e);
 	}
 
 	g_slist_free(entry_list);
@@ -3031,8 +3085,8 @@ void send_queue_cb(gpointer data, guint action, GtkWidget *widget)
 	if (prefs_common.work_offline)
 		if (alertpanel(_("Offline warning"), 
 			       _("You're working offline. Override?"),
-			       GTK_STOCK_NO, GTK_STOCK_YES,
-			       NULL, ALERTFOCUS_FIRST) != G_ALERTALTERNATE)
+			       NULL, _("_No"), NULL, _("_Yes"),
+			       NULL, NULL, ALERTFOCUS_FIRST) != G_ALERTALTERNATE)
 		return;
 
 	/* ask for confirmation before sending queued messages only
@@ -3051,8 +3105,8 @@ void send_queue_cb(gpointer data, guint action, GtkWidget *widget)
 		if (found && !prefs_common.work_offline) {
 			if (alertpanel(_("Send queued messages"), 
 			    	   _("Send all queued messages?"),
-			    	   GTK_STOCK_CANCEL, _("_Send"),
-				   NULL, ALERTFOCUS_FIRST) != G_ALERTALTERNATE)
+			    	   NULL, _("_Cancel"), NULL, _("_Send"),
+				   NULL, NULL, ALERTFOCUS_FIRST) != G_ALERTALTERNATE)
 				return;
 		}
 	}

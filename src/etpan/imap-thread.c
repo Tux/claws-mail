@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2005-2016 DINH Viet Hoa and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2005-2022 the Claws Mail team and DINH Viet Hoa
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -97,6 +97,7 @@ static int do_mailimap_socket_connect(mailimap * imap, const char * server,
 	return mailimap_connect(imap, stream);
 }
 
+#ifdef USE_GNUTLS
 static int do_mailimap_ssl_connect_with_callback(mailimap * imap, const char * server,
 	gushort port,
 	void (* callback)(struct mailstream_ssl_context * ssl_context, void * data),
@@ -142,6 +143,7 @@ static int do_mailimap_ssl_connect_with_callback(mailimap * imap, const char * s
 
 	return mailimap_connect(imap, stream);
 }
+#endif
 
 static gboolean thread_manager_event(GIOChannel * source,
     GIOCondition condition,
@@ -999,9 +1001,11 @@ static void login_run(struct etpan_thread_op * op)
 			param->type, NULL, NULL, NULL,
 			NULL, param->login,
 			param->password, NULL);
-	else if (!strcmp(param->type, "XOAUTH2")) {
+#ifdef USE_OAUTH2
+	else if (!strcmp(param->type, "XOAUTH2"))
                 r = mailimap_oauth2_authenticate(param->imap, param->login, param->password);
-	} else
+#endif
+	else
 		r = mailimap_authenticate(param->imap,
 			param->type, NULL, NULL, NULL,
 			param->login, param->login,
@@ -2663,7 +2667,8 @@ static void fetch_content_run(struct etpan_thread_op * op)
 	close:
 		close(fd);
 	unlink:
-		claws_unlink(param->filename);
+		if (claws_unlink(param->filename) < 0)
+                        FILE_OP_ERROR(param->filename, "claws_unlink");
 	
 	free:
 		/* mmap_string_unref is a simple free in libetpan
@@ -3376,15 +3381,11 @@ int imap_threaded_store(Folder * folder, struct mailimap_set * set,
 }
 
 
-#define ENV_BUFFER_SIZE 512
 #ifndef G_OS_WIN32
 static void do_exec_command(int fd, const char * command,
 			    const char * servername, uint16_t port)
 {
 	int i, maxopen;
-#ifdef SOLARIS
-	char env_buffer[ENV_BUFFER_SIZE];
-#endif
 	
 	if (fork() > 0) {
 		/* Fork again to become a child of init rather than

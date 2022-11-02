@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2001-2015 Match Grun and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -390,8 +390,8 @@ static gchar *vcard_unescape_qp( gchar *value ) {
 		return NULL;
 		
 	len = strlen(value);
-	res = g_malloc(len);
-	qp_decode_const(res, len-1, value);
+	res = g_malloc(len + 1);
+	qp_decode_const(res, len, value);
 	if (!g_utf8_validate(res, -1, NULL)) {
 		gchar *mybuf = g_malloc(strlen(res)*2 +1);
 		conv_localetodisp(mybuf, strlen(res)*2 +1, res);

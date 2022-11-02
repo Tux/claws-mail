@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2014-2015 Ricardo Mones and the Claws Mail Team
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
+
 #include <stdio.h>
 
 #include "libravatar_federation.h"
@@ -24,6 +26,7 @@
 
 #define MISSING "x"
 
+#if defined USE_GNUTLS
 static GHashTable *federated = NULL;
 
 /**
@@ -68,6 +71,7 @@ static void add_federated_url_for_domain(const gchar *url, const gchar *domain)
 	debug_print("new cached avatar url for domain %s: %s\n", domain, url);
 	g_hash_table_insert(federated, g_strdup(domain), g_strdup(url)); 
 }
+#endif
 
 /**
  * Retrieves the federated URL for a given email address.

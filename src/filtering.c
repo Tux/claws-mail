@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2020 the Claws Mail Team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "defs.h"
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -540,6 +541,8 @@ static gboolean filteringaction_apply(FilteringAction * action, MsgInfo * info)
 			} else {
 				g_warning("header '%s' not set or empty", action->header?action->header:"(null)");
 			}
+			if (header)
+				procheader_header_free(header);
 			return (errors == 0);
 		}
 	default:
@@ -597,27 +600,39 @@ static gboolean filtering_match_condition(FilteringProp *filtering, MsgInfo *inf
 
 		/* debug output */
 		if (debug_filtering_session) {
-			if (matches && prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
-				if (filtering->account_id == 0) {
-					log_status_ok(LOG_DEBUG_FILTERING,
-							_("rule is not account-based\n"));
-				} else {
+			if (matches) {
+				/* either because rule is not account-based */
+    			if (filtering->account_id == 0) {
 					if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_MED) {
+       					log_status_ok(LOG_DEBUG_FILTERING,
+	    						_("rule is not account-based\n"));
+                    }
+				} else {
+					/* or because it is account-based, and matching current account */
+					if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+						/* with fewer detail when rule is OK */
 						log_status_ok(LOG_DEBUG_FILTERING,
-								_("rule is account-based [id=%d, name='%s'], "
-								"matching the account currently used to retrieve messages\n"),
-								ac_prefs->account_id, ac_prefs?ac_prefs->account_name:_("NON_EXISTENT"));
+								_("rule is account-based, "
+								"matching the account currently used to retrieve messages\n"));
+					} else {
+						if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_HIGH) {
+							/* with more detail when rule is OK */
+							log_status_ok(LOG_DEBUG_FILTERING,
+									_("rule is account-based [id=%d, name='%s'], "
+									"matching the account currently used to retrieve messages\n"),
+									ac_prefs->account_id, ac_prefs?ac_prefs->account_name:_("NON_EXISTENT"));
+						}
 					}
 				}
-			}
-			else
-			if (!matches) {
-				if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_MED) {
+			} else {
+				if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+					/* with fewer detail when rule is skipped */
 					log_status_skip(LOG_DEBUG_FILTERING,
 							_("rule is account-based, "
 							"not matching the account currently used to retrieve messages\n"));
 				} else {
-					if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
+					if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_HIGH) {
+						/* with more detail when rule is skipped */
 						PrefsAccount *account = account_find_from_id(filtering->account_id);
 
 						log_status_skip(LOG_DEBUG_FILTERING,
@@ -637,18 +652,28 @@ static gboolean filtering_match_condition(FilteringProp *filtering, MsgInfo *inf
 
 			/* debug output */
 			if (debug_filtering_session) {
-				if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
-					if (filtering->account_id == 0) {
+				if (filtering->account_id == 0) {
+					if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_MED) {
+        				log_status_ok(LOG_DEBUG_FILTERING,
+		    					_("rule is not account-based, "
+			    				"but all rules are applied on user request anyway\n"));
+                    }
+				} else {
+					if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+						/* with fewer detail when rule is OK */
 						log_status_ok(LOG_DEBUG_FILTERING,
-								_("rule is not account-based, "
-								"all rules are applied on user request anyway\n"));
+								_("rule is account-based, "
+								"but all rules are applied on user request anyway\n"));
 					} else {
-						PrefsAccount *account = account_find_from_id(filtering->account_id);
+						if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+							/* with more detail when rule is OK */
+							PrefsAccount *account = account_find_from_id(filtering->account_id);
 
-						log_status_ok(LOG_DEBUG_FILTERING,
-								_("rule is account-based [id=%d, name='%s'], "
-								"but all rules are applied on user request\n"),
-								filtering->account_id, account?account->account_name:_("NON_EXISTENT"));
+							log_status_ok(LOG_DEBUG_FILTERING,
+									_("rule is account-based [id=%d, name='%s'], "
+									"but all rules are applied on user request anyway\n"),
+									filtering->account_id, account?account->account_name:_("NON_EXISTENT"));
+						}
 					}
 				}
 			}
@@ -659,23 +684,27 @@ static gboolean filtering_match_condition(FilteringProp *filtering, MsgInfo *inf
 
 			/* debug output */
 			if (debug_filtering_session) {
-				if (!matches) {
-					if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
-						PrefsAccount *account = account_find_from_id(filtering->account_id);
-
-						log_status_skip(LOG_DEBUG_FILTERING,
-								_("rule is account-based [id=%d, name='%s'], "
-								"skipped on user request\n"),
-								filtering->account_id, account?account->account_name:_("NON_EXISTENT"));
-					} else {
+				if (matches) {
+					if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_MED) {
+    					log_status_ok(LOG_DEBUG_FILTERING,
+	    						_("rule is not account-based\n"));
+                    }
+				} else {
+					if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+						/* with fewer detail when rule is skipped */
 						log_status_skip(LOG_DEBUG_FILTERING,
 								_("rule is account-based, "
 								"skipped on user request\n"));
-					}
-				} else {
-					if (matches && prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
-						log_status_ok(LOG_DEBUG_FILTERING,
-								_("rule is not account-based\n"));
+					} else {
+						if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_HIGH) {
+							/* with more detail when rule is skipped */
+							PrefsAccount *account = account_find_from_id(filtering->account_id);
+
+							log_status_skip(LOG_DEBUG_FILTERING,
+									_("rule is account-based [id=%d, name='%s'], "
+									"skipped on user request\n"),
+									filtering->account_id, account?account->account_name:_("NON_EXISTENT"));
+						}
 					}
 				}
 			}
@@ -686,32 +715,46 @@ static gboolean filtering_match_condition(FilteringProp *filtering, MsgInfo *inf
 
 			/* debug output */
 			if (debug_filtering_session) {
-				if (!matches) {
-					if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
-						PrefsAccount *account = account_find_from_id(filtering->account_id);
-
-						log_status_skip(LOG_DEBUG_FILTERING,
-								_("rule is account-based [id=%d, name='%s'], "
-								"not matching current account [id=%d, name='%s']\n"),
-								filtering->account_id, account?account->account_name:_("NON_EXISTENT"),
-								cur_account->account_id, cur_account?cur_account->account_name:_("NON_EXISTENT"));
+				if (matches) {
+					if (filtering->account_id == 0) {
+						if (prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_MED) {
+							log_status_ok(LOG_DEBUG_FILTERING,
+									_("rule is not account-based\n"));
+                        }
 					} else {
+						if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+							/* with fewer detail when rule is OK */
+							log_status_ok(LOG_DEBUG_FILTERING,
+									_("rule is account-based, "
+									"matching current account\n"));
+						} else {
+							if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+								/* with more detail when rule is OK */
+								PrefsAccount *account = account_find_from_id(filtering->account_id);
+
+								log_status_ok(LOG_DEBUG_FILTERING,
+										_("rule is account-based [id=%d, name='%s'], "
+										"matching current account [id=%d, name='%s']\n"),
+										account->account_id, account?account->account_name:_("NON_EXISTENT"),
+										cur_account->account_id, cur_account?cur_account->account_name:_("NON_EXISTENT"));
+							}
+						}
+					}
+				} else {
+					if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_MED) {
+						/* with fewer detail when rule is skipped */
 						log_status_skip(LOG_DEBUG_FILTERING,
 								_("rule is account-based, "
 								"not matching current account\n"));
-					}
-				} else {
-					if (matches && prefs_common.filtering_debug_level >= FILTERING_DEBUG_LEVEL_HIGH) {
-						if (filtering->account_id == 0) {
-							log_status_ok(LOG_DEBUG_FILTERING,
-									_("rule is not account-based\n"));
-						} else {
+					} else {
+						if (prefs_common.filtering_debug_level == FILTERING_DEBUG_LEVEL_HIGH) {
+							/* with more detail when rule is skipped */
 							PrefsAccount *account = account_find_from_id(filtering->account_id);
 
-							log_status_ok(LOG_DEBUG_FILTERING,
+							log_status_skip(LOG_DEBUG_FILTERING,
 									_("rule is account-based [id=%d, name='%s'], "
-									"current account [id=%d, name='%s']\n"),
-									account->account_id, account?account->account_name:_("NON_EXISTENT"),
+									"not matching current account [id=%d, name='%s']\n"),
+									filtering->account_id, account?account->account_name:_("NON_EXISTENT"),
 									cur_account->account_id, cur_account?cur_account->account_name:_("NON_EXISTENT"));
 						}
 					}
@@ -951,9 +994,11 @@ gchar *filteringaction_to_string(FilteringAction *action)
 
 	command_str = get_matchparser_tab_str(action->type);
 
-	if (command_str == NULL)
+	if (command_str == NULL) {
+		g_string_free(dest, TRUE);
 		return NULL;
-
+	}
+    
 	switch(action->type) {
 	case MATCHACTION_MOVE:
 	case MATCHACTION_COPY:
@@ -1008,6 +1053,7 @@ gchar *filteringaction_to_string(FilteringAction *action)
 		break;
 
 	default:
+		g_string_free(dest, TRUE);
 		return NULL;
 	}
 	deststr = dest->str;
@@ -1077,8 +1123,8 @@ static void prefs_filtering_free(GSList * prefs_filtering)
  	while (prefs_filtering != NULL) {
  		FilteringProp * filtering = (FilteringProp *)
 			prefs_filtering->data;
- 		filteringprop_free(filtering);
  		prefs_filtering = g_slist_remove(prefs_filtering, filtering);
+ 		filteringprop_free(filtering);
  	}
 }
 
@@ -1152,7 +1198,7 @@ gboolean filtering_action_list_rename_path(GSList *action_list, const gchar *old
 	gint destlen;
 	gint prefixlen;
 	gint oldpathlen;
-        GSList * action_cur;
+	GSList * action_cur;
 	const gchar *separator=G_DIR_SEPARATOR_S;
 	gboolean matched = FALSE;
 #ifdef G_OS_WIN32
@@ -1165,7 +1211,7 @@ again:
 		action_cur = action_cur->next) {
 
 		FilteringAction *action = action_cur->data;
-                        
+
 		if (action->type == MATCHACTION_SET_TAG ||
 		    action->type == MATCHACTION_UNSET_TAG)
 			continue;
@@ -1173,35 +1219,31 @@ again:
 			continue;
 		
 		destlen = strlen(action->destination);
-                        
+
 		if (destlen > oldpathlen) {
 			prefixlen = destlen - oldpathlen;
 			suffix = action->destination + prefixlen;
-                                
+
 			if (!strncmp(old_path, suffix, oldpathlen)) {
 				prefix = g_malloc0(prefixlen + 1);
 				strncpy2(prefix, action->destination, prefixlen);
-                                        
+
 				base = suffix + oldpathlen;
-				while (*base == G_DIR_SEPARATOR) base++;
-                                if (*base == '\0')
-                                	dest_path = g_strconcat(prefix, separator,
-                                				new_path, NULL);
+				while (*base == G_DIR_SEPARATOR)
+					base++;
+				if (*base == '\0')
+					dest_path = g_strconcat(prefix, separator, new_path, NULL);
 				else
-					dest_path = g_strconcat(prefix,
-								separator,
-								new_path,
-								separator,
-								base, NULL);
-                                        
-					g_free(prefix);
-					g_free(action->destination);
-					action->destination = dest_path;
-					matched = TRUE;
+					dest_path = g_strconcat(prefix, separator, new_path, separator, base, NULL);
+
+				g_free(prefix);
+				g_free(action->destination);
+				action->destination = dest_path;
+				matched = TRUE;
 			} else { /* for non-leaf folders */
 				/* compare with trailing slash */
 				if (!strncmp(old_path_with_sep, action->destination, oldpathlen+1)) {
-                                                
+
 					suffix = action->destination + oldpathlen + 1;
 					dest_path = g_strconcat(new_path, separator,
 								suffix, NULL);
@@ -1213,10 +1255,10 @@ again:
 		} else {
 			/* folder-moving a leaf */
 			if (!strcmp(old_path, action->destination)) {
-                        	dest_path = g_strdup(new_path);
-                        	g_free(action->destination);
-                        	action->destination = dest_path;
-                        	matched = TRUE;
+				dest_path = g_strdup(new_path);
+				g_free(action->destination);
+				action->destination = dest_path;
+				matched = TRUE;
 			}
 		}
 	}

@@ -1,8 +1,6 @@
 static char *TEAM_LIST[] = {
-"Holger Berndt <berndth@users.sf.net>",
 "Jonathan Boeing <jonathan@claws-mail.org>",
 "Tristan Chabredier <wwp@claws-mail.org>",
-"Darko Koruga <darko@users.sf.net>",
 "Thorsten Maerz <thorsten@claws-mail.org>",
 "Paul Mangan <paul@claws-mail.org>",
 "Ricardo Mones Lastra <ricardo@mones.org>",
@@ -12,6 +10,7 @@ NULL
 };
 
 static char *EX_TEAM_LIST[] = {
+"Holger Berndt",
 "Hoà Viêt Dinh",
 "Keith Edmunds",
 "Match Grun",
@@ -21,6 +20,7 @@ static char *EX_TEAM_LIST[] = {
 "Alfons Hoogervorst",
 "Andrej Kacian",
 "Werner Koch",
+"Darko Koruga",
 "Charles Lehner",
 "Colin Leroy-Mira",
 "Paweł Pękala",
@@ -38,7 +38,7 @@ static char *TRANS_TEAM_LIST[] = {
 "[ca] David Medina <opensusecatala@gmail.com>",
 "[cs] David Vachulka <david@konstrukce-cad.com>",
 "[da] Erik P. Olsen <epodata@gmail.com>",
-"[de] Simon Legner <simon.legner@gmail.com>",
+"[de] Simon Legner",
 "[en_GB] Paul Mangan <paul@claws-mail.org>",
 "[es] Ricardo Mones Lastra <ricardo@mones.org>",
 "[fi] Flammie Pirinen <flammie@iki.fi>",
@@ -49,7 +49,7 @@ static char *TRANS_TEAM_LIST[] = {
 "[ja] UTUMI Hirosi <utuhiro78@yahoo.co.jp>",
 "[nb] Petter Adsen <petter@synth.no>",
 "[nl] Marcel Pol <mpol@gmx.net>",
-"[pl] Jakub Jankiewicz <jcubic@jcubic.pl>",
+"[pl] Łukasz Wojniłowicz <lukasz.wojnilowicz@gmail.com>",
 "[pt_BR] Frederico Goncalves Guimaraes <frederico@teia.bio.br>",
 "[pt_PT] Pedro Albuquerque <palbuquerque73@gmail.com>",
 "[ro] Cristian Secară <liste@secarica.ro>",
@@ -65,6 +65,7 @@ static char *DOC_TEAM_LIST[] = {
 "[en] Tristan Chabredier <wwp@claws-mail.org>",
 "     Ricardo Mones Lastra <ricardo@mones.org>",
 "     Paul Mangan <paul@claws-mail.org>",
+"[de] Christoph Klassen <christoph.klassen@intevation.de>",
 "[es] Ricardo Mones Lastra <ricardo@mones.org>",
 "[fr] Tristan Chabredier <wwp@claws-mail.org>",
 NULL
@@ -141,6 +142,7 @@ static char *CONTRIBS_LIST[] = {
 "Tiago Faria",
 "Alessandro Di Federico",
 "Lars Persson Fink",
+"David Fletcher",
 "Bob Forsman",
 "Matthias Förste",
 "Ivan Francolin Martinez",

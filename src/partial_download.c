@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2018 Colin Leroy <colin@colino.net>
  * and the Claws Mail team
  *
@@ -149,7 +149,7 @@ static int partial_uidl_mark_mail(MsgInfo *msginfo, int download)
 
 	filename = procmsg_get_message_file_path(msginfo);
 	if (!filename) {
-		g_warning("can't get message file path.");
+		g_warning("can't get message file path");
 		return err;
 	}
 	tinfo = procheader_parse_file(filename, msginfo->flags, TRUE, TRUE);
@@ -193,6 +193,7 @@ static int partial_uidl_mark_mail(MsgInfo *msginfo, int download)
 	if ((fpnew = claws_fopen(pathnew, "wb")) == NULL) {
 		FILE_OP_ERROR(pathnew, "claws_fopen");
 		claws_fclose(fp);
+		g_free(path);
 		g_free(pathnew);
 		goto bail;
 	}
@@ -435,4 +436,3 @@ gchar *partial_get_filename(const gchar *server, const gchar *login,
 	
 	return result;
 }
-

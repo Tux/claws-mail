@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2001-2015 Match Grun and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,8 @@
  * Functions necessary to access LDIF files (LDAP Data Interchange Format
  * files).
  */
+
+#include "config.h"
 
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -239,7 +241,7 @@ static void ldif_close_file( LdifFile *ldifFile ) {
 /**
  * Read line of text from file.
  * \param  ldifFile LDIF import control object.
- * \return ptr to buffer where line starts.
+ * \return ptr to buffer where line starts (must be freed by caller).
  */
 static gchar *ldif_get_line( LdifFile *ldifFile ) {
 	gchar *buf = g_malloc(LDIFBUFSIZE);
@@ -257,7 +259,10 @@ static gchar *ldif_get_line( LdifFile *ldifFile ) {
 		if (claws_ferror( ldifFile->file ))
 			ldifFile->retVal = MGU_ERROR_READ;
 		if( ch == '\0' || ch == EOF ) {
-			if( i == 0 ) return NULL;
+			if( i == 0 ) {
+				g_free(buf);
+				return NULL;
+			}
 			break;
 		}
 #if HAVE_DOSISH_SYSTEM
@@ -276,8 +281,7 @@ static gchar *ldif_get_line( LdifFile *ldifFile ) {
 	}
 	buf[i] = '\0';
 
-	/* Return a copy of buffer */
-	return g_strdup( buf );
+	return buf;
 }
 
 /**
@@ -711,8 +715,8 @@ static void ldif_read_file( LdifFile *ldifFile, AddressCache *cache ) {
 					g_free( tagName );
 				}
 			}
+			g_free( line );
 		}
-		g_free( line );
 	}
 
 	/* Release data */
@@ -886,8 +890,8 @@ static void ldif_read_tag_list( LdifFile *ldifFile ) {
 					}
 				}
 			}
+			g_free( line );
 		}
-		g_free( line );
 	}
 
 	/* Release data */

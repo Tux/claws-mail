@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2013 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -259,7 +259,7 @@ static void mh_get_last_num(Folder *folder, FolderItem *item)
 	cm_return_if_fail(path != NULL);
 
 	if ((dp = g_dir_open(path, 0, &error)) == NULL) {
-		g_warning("Couldn't open directory '%s': %s (%d)",
+		g_warning("couldn't open directory '%s': %s (%d)",
 				path, error->message, error->code);
 		g_error_free(error);
 		g_free(path);
@@ -494,7 +494,7 @@ static gint mh_copy_msgs(Folder *folder, FolderItem *dest, MsgInfoList *msglist,
 	cm_return_val_if_fail(msginfo != NULL, -1);
 
 	if (msginfo->folder == dest) {
-		g_warning("the src folder is identical to the dest.");
+		g_warning("the src folder is identical to the dest");
 		return -1;
 	}
 
@@ -807,19 +807,28 @@ static gint mh_scan_tree(Folder *folder)
 { \
 	if (!is_dir_exist(dir)) { \
 		if (is_file_exist(dir)) { \
-			g_warning("File '%s' already exists. " \
-				    "Can't create folder.", dir); \
+			g_warning("file '%s' already exists, " \
+				    "can't create folder", dir); \
+			if (rootpath) \
+				g_free(rootpath); \
+			if (path) \
+				g_free(path); \
 			return -1; \
 		} \
-		if (make_dir_hier(dir) < 0) \
+		if (make_dir_hier(dir) < 0) { \
+			if (rootpath) \
+				g_free(rootpath); \
+			if (path) \
+				g_free(path); \
 			return -1; \
+		} \
 		debug_print("Created dir '%s'\n", dir); \
 	} \
 }
 
 static gint mh_create_tree(Folder *folder)
 {
-	gchar *rootpath, *f, *path;
+	gchar *rootpath, *f, *path = NULL;
 
 	cm_return_val_if_fail(folder != NULL, -1);
 
@@ -1042,6 +1051,7 @@ static gint mh_rename_folder(Folder *folder, FolderItem *item,
 	real_name = mh_filename_from_utf8(name);
 	newpath = g_strconcat(dirname, G_DIR_SEPARATOR_S, real_name, NULL);
 	g_free(real_name);
+	g_free(dirname);
 
 	if (g_rename(oldpath, newpath) < 0) {
 		FILE_OP_ERROR(oldpath, "rename");
@@ -1325,6 +1335,7 @@ static gchar *get_unseen_seq_name(void)
 			get_home_dir(), G_DIR_SEPARATOR_S,
 			".mh_profile", NULL);
 		FILE *fp = claws_fopen(profile_path, "r");
+		g_free(profile_path);
 		if (fp) {
 			while (claws_fgets(buf, sizeof(buf), fp) != NULL) {
 				if (!strncmp(buf, "Unseen-Sequence:", strlen("Unseen-Sequence:"))) {
@@ -1468,6 +1479,6 @@ static void mh_set_mtime(Folder *folder, FolderItem *item)
 	}
 
 	item->mtime = s.st_mtime;
-	debug_print("MH: forced mtime of %s to %"G_GSIZE_FORMAT"\n", item->name?item->name:"(null)", item->mtime);
+	debug_print("MH: forced mtime of %s to %"CM_TIME_FORMAT"\n", item->name?item->name:"(null)", item->mtime);
 	g_free(path);
 }

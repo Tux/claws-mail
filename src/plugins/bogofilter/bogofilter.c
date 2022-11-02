@@ -1,7 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2012 Colin Leroy <colin@colino.net> and 
- * the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 the Claws Mail team and Colin Leroy
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +26,6 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
 
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -174,7 +172,7 @@ static void bogofilter_do_filter(BogoFilterData *data)
 	GSList *cur = NULL;
 	int total = 0, curnum = 1;
 	gchar *file = NULL;
-	gchar buf[BUFSIZ];
+	gchar buf[BUFFSIZE];
 
 	total = g_slist_length(data->msglist);
 
@@ -208,6 +206,7 @@ static void bogofilter_do_filter(BogoFilterData *data)
 		for (cur = data->msglist; cur; cur = cur->next) {
 			gboolean whitelisted = FALSE;
 			msginfo = (MsgInfo *)cur->data;
+			ssize_t n_read;
 			debug_print("Filtering message %d (%d/%d)\n", msginfo->msgnum, curnum, total);
 
 			if (message_callback != NULL)
@@ -229,7 +228,7 @@ static void bogofilter_do_filter(BogoFilterData *data)
 				g_free(tmp);
 				memset(buf, 0, sizeof(buf));
 				/* get the result */
-				if (read(bogo_stdout, buf, sizeof(buf)-1) < 0) {
+				if ((n_read = read(bogo_stdout, buf, sizeof(buf)-1)) < 0) {
 					g_warning("bogofilter short read");
 					debug_print("message %d is ham\n", msginfo->msgnum);
 					data->mail_filtering_data->unfiltered = g_slist_prepend(
@@ -238,15 +237,15 @@ static void bogofilter_do_filter(BogoFilterData *data)
 				} else {
 					gchar **parts = NULL;
 
-					buf[sizeof(buf) - 1] = '\0';
+					buf[n_read] = '\0';
 					if (strchr(buf, '/')) {
 						tmp = strrchr(buf, '/')+1;
 					} else {
 						tmp = buf;
 					}
 					parts = g_strsplit(tmp, " ", 0);
-					debug_print("read %s\n", buf);
-					
+					debug_print("read '%s'\n", g_strchomp(buf));
+
 					/* note the result if the header if needed */
 					if (parts && parts[0] && parts[1] && parts[2] && 
 					    FOLDER_TYPE(msginfo->folder->folder) == F_MH &&
@@ -272,7 +271,7 @@ static void bogofilter_do_filter(BogoFilterData *data)
 							if (claws_fwrite(tmpstr, 1, strlen(tmpstr), output) < strlen(tmpstr)) {
 								err = TRUE;
 							} else {
-								while (claws_fgets(tmpbuf, sizeof(buf), input)) {
+								while (claws_fgets(tmpbuf, sizeof(tmpbuf), input)) {
 									if (claws_fputs(tmpbuf, output) == EOF) {
 										err = TRUE;
 										break;
@@ -731,6 +730,7 @@ int bogofilter_learn(MsgInfo *msginfo, GSList *msglist, gboolean spam)
 		return -1;
 	}
 
+	/* process *either* a msginfo or a msglist */
 	if (msginfo) {
 		file = procmsg_get_message_file(msginfo);
 		if (file == NULL) {
@@ -882,7 +882,7 @@ void bogofilter_save_config(void)
 		return;
 
 	if (prefs_write_param(param, pfile->fp) < 0) {
-		g_warning("Failed to write Bogofilter configuration to file");
+		g_warning("failed to write Bogofilter configuration to file");
 		prefs_file_close_revert(pfile);
 		return;
 	}
@@ -998,7 +998,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)
@@ -1025,7 +1025,7 @@ void bogofilter_register_hook(void)
 	if (hook_id == HOOK_NONE)
 		hook_id = hooks_register_hook(MAIL_LISTFILTERING_HOOKLIST, mail_filtering_hook, NULL);
 	if (hook_id == HOOK_NONE) {
-		g_warning("Failed to register mail filtering hook");
+		g_warning("failed to register mail filtering hook");
 		config.process_emails = FALSE;
 	}
 }

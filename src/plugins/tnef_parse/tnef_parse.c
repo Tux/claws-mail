@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2007 Colin Leroy <colin@colino.net>
  * and the Claws Mail Team
  *
@@ -97,7 +97,6 @@ static MimeInfo *tnef_dump_file(const gchar *filename, char *data, size_t size)
 	gchar *tmpfilename = NULL;
 	FILE *fp = get_tmpfile_in_dir(get_mime_tmp_dir(), &tmpfilename);
 	GStatBuf statbuf;
-	gchar *content_type = NULL;
 	if (!fp) {
 		g_free(tmpfilename);
 		return NULL;
@@ -109,6 +108,8 @@ static MimeInfo *tnef_dump_file(const gchar *filename, char *data, size_t size)
 	sub_info->subtype = g_strdup("octet-stream");
 	
 	if (filename) {
+		gchar *content_type = NULL;
+
 		g_hash_table_insert(sub_info->typeparameters,
 				    g_strdup("filename"),
 				    g_strdup(filename));
@@ -119,21 +120,24 @@ static MimeInfo *tnef_dump_file(const gchar *filename, char *data, size_t size)
 			sub_info->subtype = g_strdup(strchr(content_type, '/')+1);
 			*(strchr(content_type, '/')) = '\0';
 			sub_info->type = procmime_get_media_type(content_type);
-			g_free(content_type);
 		}
+		if (content_type)
+			g_free(content_type);
 	} 
 
 	if (claws_fwrite(data, 1, size, fp) < size) {
 		FILE_OP_ERROR(tmpfilename, "claws_fwrite");
 		claws_fclose(fp);
-		claws_unlink(tmpfilename);
+                if (claws_unlink(tmpfilename) < 0)
+                        FILE_OP_ERROR(tmpfilename, "claws_unlink");
 		procmime_mimeinfo_free_all(&sub_info);
 		return tnef_broken_mimeinfo(_("Failed to write the part data."));
 	}
 	claws_fclose(fp);
 
 	if (g_stat(tmpfilename, &statbuf) < 0) {
-		claws_unlink(tmpfilename);
+		if (claws_unlink(tmpfilename) < 0)
+                        FILE_OP_ERROR(tmpfilename, "claws_unlink");
 		procmime_mimeinfo_free_all(&sub_info);
 		return tnef_broken_mimeinfo(_("Failed to write the part data."));
 	} else {
@@ -317,7 +321,7 @@ static gboolean tnef_parse (MimeParser *parser, MimeInfo *mimeinfo)
 			    g_strdup("Parsed from MS-TNEF"));
 
 	if (parse_result != 0) {
-		g_warning("Failed to parse TNEF data.");
+		g_warning("failed to parse TNEF data");
 		TNEFFree(tnef);
 		return FALSE;
 	}
@@ -447,7 +451,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)

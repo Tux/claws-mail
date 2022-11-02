@@ -143,7 +143,7 @@
         <term>Visor HTML Fancy</term>
         <listitem>
           <para>
-	Permite mostrar mensajes HTML usando la versión basada en GTK+
+	Permite mostrar mensajes HTML usando la versión basada en GTK
 	de la librería WebKit. Por omisión no se carga ningún contenido
 	remoto.
 	  </para><para>
@@ -170,6 +170,15 @@
 	biblioteca gdata. La única funcionalidad implmementada actualmente
 	es incluir los contactos de Google en la función de auto-completar
 	direcciones con el tabulador.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>Aviso de palabras clave</term>
+	<listitem>
+	  <para>
+	Muestra un aviso al enviar o poner en la cola un mensaje y el texto
+	del mismo contiene alguna referencia a una o más palabras clave.
 	  </para>
 	</listitem>
       </varlistentry>

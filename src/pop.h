@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -54,6 +54,7 @@ typedef enum {
 	POP3_GETAUTH_PASS,
 	POP3_GETAUTH_APOP,
 	POP3_GETAUTH_OAUTH2,
+	POP3_GETAUTH_OAUTH2_AFTER_LINE_1,
 	POP3_GETRANGE_STAT,
 	POP3_GETRANGE_LAST,
 	POP3_GETRANGE_UIDL,
@@ -151,7 +152,7 @@ struct _Pop3Session
 				 const gchar	*file);
 };
 
-#define POPBUFSIZE	512
+#define POPBUFSIZE	8192
 /* #define IDLEN	128 */
 #define IDLEN		POPBUFSIZE
 

@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2001-2016 the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2001-2021 the Claws Mail team
  * This file (C) 2005-2015 Andrej Kacian <andrej@kacian.sk>
  *
  * - Plugin preferences
@@ -113,7 +113,7 @@ rssyl_prefs_cookies_browse_cb(GtkWidget* widget, gpointer data)
 
 	utf8_filename = g_filename_to_utf8(filename, -1, NULL, NULL, NULL);
 	if (!utf8_filename) {
-		g_warning("rssyl_prefs_cookies_browse_cb(): failed to convert character set.");
+		g_warning("rssyl_prefs_cookies_browse_cb(): failed to convert character set");
 		utf8_filename = g_strdup(filename);
 	}
 	gtk_entry_set_text(GTK_ENTRY(dest), utf8_filename);
@@ -129,14 +129,14 @@ static void create_rssyl_prefs_page(PrefsPage *page,
 	GtkWidget *refresh, *refresh_enabled, *refresh_hbox;
 	GtkWidget *label;
 	GtkWidget *refresh_on_startup;
-	GtkObject *refresh_adj;
+	GtkAdjustment *refresh_adj;
 	GtkWidget *cookies_path, *cookies_btn, *cookies_hbox;
 	GtkWidget *ssl_verify_peer;
 
-	vbox1 = gtk_vbox_new(FALSE, 6);
+	vbox1 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 
 	/* Refresh interval */
-	refresh_hbox = gtk_hbox_new(FALSE, 6);
+	refresh_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
 	refresh_enabled = gtk_check_button_new_with_label(
 			_("Default refresh interval"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(refresh_enabled),
@@ -163,17 +163,17 @@ static void create_rssyl_prefs_page(PrefsPage *page,
 			rssyl_prefs.refresh_on_startup);
 	gtk_box_pack_start(GTK_BOX(vbox1), refresh_on_startup, FALSE, FALSE, 0);
 
-	vbox2 = gtk_vbox_new(FALSE, 6);
+	vbox2 = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 
 	/* Whether to verify SSL peer certificate */
 	ssl_verify_peer = gtk_check_button_new_with_label(
-			_("Verify SSL/TLS certificates validity for new feeds"));
+			_("Verify TLS certificates validity for new feeds"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ssl_verify_peer),
 			rssyl_prefs.ssl_verify_peer);
 	gtk_box_pack_start(GTK_BOX(vbox2), ssl_verify_peer, FALSE, FALSE, 0);
 
 	/* Path to cookies file for libcurl to use */
-	cookies_hbox = gtk_hbox_new(FALSE, 6);
+	cookies_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
 	label = gtk_label_new(_("Path to cookies file"));
 	gtk_box_pack_start(GTK_BOX(cookies_hbox), label, FALSE, FALSE, 0);
 
@@ -189,7 +189,7 @@ static void create_rssyl_prefs_page(PrefsPage *page,
 		G_CALLBACK(rssyl_prefs_cookies_browse_cb), cookies_path);
 	gtk_box_pack_start(GTK_BOX(vbox2), cookies_hbox, FALSE, FALSE, 0);
 
-	vbox = gtk_vbox_new(FALSE, 6);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 	gtk_container_set_border_width (GTK_CONTAINER (vbox), 6);
 
 	PACK_FRAME (vbox, frame, _("Refreshing"));
@@ -244,7 +244,7 @@ static void save_rssyl_prefs(PrefsPage *page)
 				return;
 
 	if( prefs_write_param(param, pref_file->fp) < 0 ) {
-		g_warning("Failed to write RSSyl plugin configuration");
+		g_warning("failed to write RSSyl plugin configuration");
 		prefs_file_close_revert(pref_file);
 		return;
 	}

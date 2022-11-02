@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2004 Hiroyuki Yamamoto
  * This file (C) 2005 Andrej Kacian <andrej@kacian.sk>
  *
@@ -314,13 +314,13 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 	/* If one of the timestamps is empty, set it to value of the other one. */
 	if( feed_item_get_date_modified(feed_item) == -1 &&
 			feed_item_get_date_published(feed_item) >= 0 ) {
-		debug_print("RSSyl: setting missing moddate to pubdate %"G_GSIZE_FORMAT"\n",
+		debug_print("RSSyl: setting missing moddate to pubdate %"CM_TIME_FORMAT"\n",
 				feed_item_get_date_published(feed_item));
 		feed_item_set_date_modified(feed_item,
 				feed_item_get_date_published(feed_item));
 	} else if( feed_item_get_date_published(feed_item) == -1 &&
 			feed_item_get_date_modified(feed_item) >= 0 ) {
-		debug_print("RSSyl: setting missing pubdate to modddate %"G_GSIZE_FORMAT"\n",
+		debug_print("RSSyl: setting missing pubdate to modddate %"CM_TIME_FORMAT"\n",
 				feed_item_get_date_modified(feed_item));
 		feed_item_set_date_published(feed_item,
 				feed_item_get_date_modified(feed_item));
@@ -328,7 +328,7 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 			feed_item_get_date_published(feed_item) == -1 &&
 			feed_item_get_sourcedate(feed_item) >= 0 ) {
 		/* If neither item date is set, use date from source (Atom only). */
-		debug_print("RSSyl: setting missing pubdate and moddate to feed source date %"G_GSIZE_FORMAT"\n",
+		debug_print("RSSyl: setting missing pubdate and moddate to feed source date %"CM_TIME_FORMAT"\n",
 				feed_item_get_sourcedate(feed_item));
 		feed_item_set_date_modified(feed_item,
 				feed_item_get_sourcedate(feed_item));
@@ -414,7 +414,7 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 	template = g_strconcat(dirname, G_DIR_SEPARATOR_S,
 			RSSYL_TMP_TEMPLATE, NULL);
 	if ((fd = g_mkstemp(template)) < 0) {
-		g_warning("Couldn't g_mkstemp('%s'), not adding message!", template);
+		g_warning("couldn't g_mkstemp('%s'), not adding message!", template);
 		g_free(dirname);
 		g_free(template);
 		return;
@@ -422,7 +422,7 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 
 	f = claws_fdopen(fd, "w");
 	if (f == NULL) {
-		g_warning("Couldn't open file '%s', not adding message!", template);
+		g_warning("couldn't open file '%s', not adding message!", template);
 		g_free(dirname);
 		g_free(template);
 		return;
@@ -495,7 +495,7 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 		fprintf(f, "X-RSSyl-URL: %s\n", tmpurl);
 
 	if( ritem->last_update > 0) {
-		fprintf(f, "X-RSSyl-Last-Seen: %lld\n", (long long)ritem->last_update);
+		fprintf(f, "X-RSSyl-Last-Seen: %" CM_TIME_FORMAT "\n", ritem->last_update);
 	}
 
 	/* Message-ID */

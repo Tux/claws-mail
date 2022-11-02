@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Parts of this file:
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail team
  *
@@ -25,6 +25,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  * 
  */
+
+#include "config.h"
 
 #include <stdlib.h>
 
@@ -165,7 +167,7 @@ gtk_sctree_change_focus_row_expansion (GtkCMCTree          *ctree,
 
   clist = GTK_CMCLIST (ctree);
 
-  if (gdk_display_pointer_is_grabbed (gtk_widget_get_display (GTK_WIDGET (ctree))) && 
+  if (gtkut_pointer_is_grabbed (GTK_WIDGET (ctree)) && 
       gtk_widget_has_grab (GTK_WIDGET(ctree)))
     return;
   
@@ -976,7 +978,7 @@ GtkWidget *gtk_sctree_new_with_titles (gint columns, gint tree_column,
 	cm_return_val_if_fail (tree_column >= 0, NULL);
 	
 	if (tree_column >= columns) {
-		g_warning("Wrong tree column");
+		g_warning("wrong tree column");
 		tree_column = 0;
 		print_backtrace();
 	}

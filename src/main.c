@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2016 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,9 +51,11 @@
 #include "file_checker.h"
 #include "wizard.h"
 #ifdef HAVE_STARTUP_NOTIFICATION
+#ifdef GDK_WINDOWING_X11
 # define SN_API_NOT_YET_FROZEN
 # include <libsn/sn-launchee.h>
 # include <gdk/gdkx.h>
+#endif
 #endif
 
 #ifdef HAVE_DBUS_GLIB
@@ -171,9 +173,7 @@ static SnDisplay *sn_display = NULL;
 
 static gint lock_socket = -1;
 static gint lock_socket_tag = 0;
-#ifdef G_OS_UNIX
-static gchar *x_display = NULL;
-#endif
+
 typedef enum 
 {
 	ONLINE_MODE_DONT_CHANGE,
@@ -218,7 +218,8 @@ static void reset_statistics(void);
 		
 static void parse_cmd_opt(int argc, char *argv[]);
 
-static gint prohibit_duplicate_launch	(void);
+static gint prohibit_duplicate_launch	(int		*argc,
+					 char		***argv);
 static gchar * get_crashfile_name	(void);
 static gint lock_socket_remove		(void);
 static void lock_socket_input_cb	(gpointer	   data,
@@ -230,7 +231,9 @@ static void open_compose_new		(const gchar	*address,
 
 static void send_queue			(void);
 static void initial_processing		(FolderItem *item, gpointer data);
+#ifndef G_OS_WIN32
 static void quit_signal_handler         (int sig);
+#endif
 static void install_basic_sighandlers   (void);
 #if (defined linux && defined SIGIO)
 static void install_memory_sighandler   (void);
@@ -379,12 +382,15 @@ static gboolean migrate_old_config(const gchar *old_cfg_dir, const gchar *new_cf
 {
 	gchar *message = g_strdup_printf(_("Configuration for %s found.\n"
 			 "Do you want to migrate this configuration?"), oldversion);
-	gchar *message2 = g_strdup_printf(_("\n\nYour Sylpheed filtering rules can be converted by a\n"
-			     "script available at %s."), TOOLS_URI);
 
-	if (!strcmp(oldversion, "Sylpheed"))
-		message = g_strconcat(message, message2, NULL);
-	g_free(message2);
+	if (!strcmp(oldversion, "Sylpheed")) {
+		gchar *message2 = g_strdup_printf(_("\n\nYour Sylpheed filtering rules can be converted by a\n"
+			     "script available at %s."), TOOLS_URI);
+		gchar *tmp = g_strconcat(message, message2, NULL);
+		g_free(message2);
+		g_free(message);
+        message = tmp;
+	}
 
 	gint r = 0;
 	GtkWidget *window = NULL;
@@ -403,8 +409,8 @@ static gboolean migrate_old_config(const gchar *old_cfg_dir, const gchar *new_cf
 			G_CALLBACK(chk_update_val), &backup);
 
 	if (alertpanel_full(_("Migration of configuration"), message,
-		 	GTK_STOCK_NO, GTK_STOCK_YES, NULL, ALERTFOCUS_SECOND, FALSE,
-			keep_backup_chk, ALERT_QUESTION) != G_ALERTALTERNATE) {
+		 	NULL, _("_No"), NULL, _("_Yes"), NULL, NULL, ALERTFOCUS_SECOND,
+			FALSE, keep_backup_chk, ALERT_QUESTION) != G_ALERTALTERNATE) {
 		return FALSE;
 	}
 	
@@ -657,7 +663,7 @@ static void sc_session_manager_connect(MainWindow *mainwin)
 			g_free(client_id);
 
 		if (error_string_ret[0] || mainwin->smc_conn == NULL)
-			g_warning ("While connecting to session manager: %s.",
+			g_warning("while connecting to session manager: %s",
 				error_string_ret);
 		else {
 			SmPropValue *vals;
@@ -693,30 +699,59 @@ void main_set_show_at_startup(gboolean show)
 }
 
 #ifdef G_OS_WIN32
-static FILE* win32_debug_fp=NULL;
+static HANDLE win32_debug_log = NULL;
 static guint win32_log_handler_app_id;
 static guint win32_log_handler_glib_id;
 static guint win32_log_handler_gtk_id;
 
-static void win32_print_stdout(const gchar *string)
+static void win32_log_WriteFile(const gchar *string)
 {
-	if (win32_debug_fp) {
-		fprintf(win32_debug_fp, "%s", string);
-		fflush(win32_debug_fp);
+	BOOL ret;
+	DWORD bytes_written;
+
+	ret = WriteFile(win32_debug_log, string, strlen(string), &bytes_written, NULL);
+	if (!ret) {
+		DWORD err = GetLastError();
+		gchar *tmp;
+
+		tmp = g_strdup_printf("Error: WriteFile in failed with error 0x%lx.  Buffer contents:\n%s", err, string);
+		OutputDebugString(tmp);
+		g_free(tmp);
 	}
 }
 
-static void win32_print_stderr(const gchar *string)
+static void win32_print_stdout(const gchar *string)
 {
-	if (win32_debug_fp) {
-		fprintf(win32_debug_fp, "%s", string);
-		fflush(win32_debug_fp);
+	if (win32_debug_log) {
+		win32_log_WriteFile(string);
 	}
+}
+
+GLogWriterOutput win32_log_writer(GLogLevelFlags log_level, const GLogField *fields, gsize n_fields, gpointer user_data)
+{
+	gchar *formatted;
+	gchar *out;
+
+	g_return_val_if_fail(win32_debug_log != NULL, G_LOG_WRITER_UNHANDLED);
+	g_return_val_if_fail(fields != NULL, G_LOG_WRITER_UNHANDLED);
+	g_return_val_if_fail(n_fields > 0, G_LOG_WRITER_UNHANDLED);
+
+	formatted = g_log_writer_format_fields(log_level, fields, n_fields, FALSE);
+	out = g_strdup_printf("%s\n", formatted);
+
+	win32_log_WriteFile(out);
+
+	g_free(formatted);
+	g_free(out);
+
+	return G_LOG_WRITER_HANDLED;
 }
 
 static void win32_log(const gchar *log_domain, GLogLevelFlags log_level, const gchar* message, gpointer user_data)
 {
-	if (win32_debug_fp) {
+	gchar *out;
+
+	if (win32_debug_log) {
 		const gchar* type;
 
 		switch(log_level & G_LOG_LEVEL_MASK)
@@ -742,11 +777,15 @@ static void win32_log(const gchar *log_domain, GLogLevelFlags log_level, const g
 			default:
 				type="N/A";
 		}
+
 		if (log_domain)
-			fprintf(win32_debug_fp, "%s: %s: %s", log_domain, type, message);
+			out = g_strdup_printf("%s: %s: %s", log_domain, type, message);
 		else
-			fprintf(win32_debug_fp, "%s: %s", type, message);
-		fflush(win32_debug_fp);
+			out = g_strdup_printf("%s: %s", type, message);
+
+		win32_log_WriteFile(out);
+
+		g_free(out);
 	}
 }
 
@@ -759,31 +798,45 @@ static void win32_open_log(void)
 		if (rename_force(logfile, oldlogfile) < 0)
 			FILE_OP_ERROR(logfile, "rename");
 	}
-	win32_debug_fp = claws_fopen(logfile, "w");
+
+	win32_debug_log = CreateFile(logfile,
+		GENERIC_WRITE,
+		FILE_SHARE_READ,
+		NULL,
+		CREATE_NEW,
+		FILE_ATTRIBUTE_NORMAL,
+		NULL);
+
+	if (win32_debug_log == INVALID_HANDLE_VALUE) {
+		win32_debug_log = NULL;
+	}
+
 	g_free(logfile);
 	g_free(oldlogfile);
-	if (win32_debug_fp)
-	{
+
+	if (win32_debug_log) {
 		g_set_print_handler(win32_print_stdout);
 		g_set_printerr_handler(win32_print_stdout);
+
 		win32_log_handler_app_id = g_log_set_handler(NULL, G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL
                      | G_LOG_FLAG_RECURSION, win32_log, NULL);
 		win32_log_handler_glib_id = g_log_set_handler("GLib", G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL
                      | G_LOG_FLAG_RECURSION, win32_log, NULL);
 		win32_log_handler_gtk_id = g_log_set_handler("Gtk", G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL
                      | G_LOG_FLAG_RECURSION, win32_log, NULL);
+
+		g_log_set_writer_func(&win32_log_writer, NULL, NULL);
 	}
 }
 
 static void win32_close_log(void)
 {
-	if (win32_debug_fp)
-	{
+	if (win32_debug_log) {
 		g_log_remove_handler("", win32_log_handler_app_id);
 		g_log_remove_handler("GLib", win32_log_handler_glib_id);
 		g_log_remove_handler("Gtk", win32_log_handler_gtk_id);
-		claws_fclose(win32_debug_fp);
-		win32_debug_fp=NULL;
+		CloseHandle(win32_debug_log);
+		win32_debug_log = NULL;
 	}
 }		
 #endif
@@ -795,19 +848,19 @@ static void main_dump_features_list(gboolean show_debug_only)
 		return;
 
 	if (show_debug_only)
-		debug_print("runtime GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+		debug_print("runtime GTK %d.%d.%d / GLib %d.%d.%d\n",
 			   gtk_major_version, gtk_minor_version, gtk_micro_version,
 			   glib_major_version, glib_minor_version, glib_micro_version);
 	else
-		g_print("runtime GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+		g_print("runtime GTK %d.%d.%d / GLib %d.%d.%d\n",
 			   gtk_major_version, gtk_minor_version, gtk_micro_version,
 			   glib_major_version, glib_minor_version, glib_micro_version);
 	if (show_debug_only)
-		debug_print("buildtime GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+		debug_print("buildtime GTK %d.%d.%d / GLib %d.%d.%d\n",
 			   GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION,
 			   GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION);
 	else
-		g_print("buildtime GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+		g_print("buildtime GTK %d.%d.%d / GLib %d.%d.%d\n",
 			   GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION,
 			   GLIB_MAJOR_VERSION, GLIB_MINOR_VERSION, GLIB_MICRO_VERSION);
 	
@@ -969,14 +1022,14 @@ static void install_dbus_status_handler(void)
 			"com.google.code.Awn");
 	dbus_item_hook_id = hooks_register_hook (FOLDER_ITEM_UPDATE_HOOKLIST, dbus_status_update_item_hook, NULL);
 	if (dbus_item_hook_id == HOOK_NONE) {
-		g_warning("Failed to register folder item update hook");
+		g_warning("failed to register folder item update hook");
 		uninstall_dbus_status_handler();
 		return;
 	}
 
 	dbus_folder_hook_id = hooks_register_hook (FOLDER_UPDATE_HOOKLIST, dbus_status_update_folder_hook, NULL);
 	if (dbus_folder_hook_id == HOOK_NONE) {
-		g_warning("Failed to register folder update hook");
+		g_warning("failed to register folder update hook");
 		uninstall_dbus_status_handler();
 		return;
 	}
@@ -1039,11 +1092,15 @@ int main(int argc, char *argv[])
 	sock_init();
 
 	/* check and create unix domain socket for remote operation */
-	lock_socket = prohibit_duplicate_launch();
+	lock_socket = prohibit_duplicate_launch(&argc, &argv);
 	if (lock_socket < 0) {
 #ifdef HAVE_STARTUP_NOTIFICATION
-		if(gtk_init_check(&argc, &argv))
+#ifdef GDK_WINDOWING_X11
+	if (GDK_IS_X11_DISPLAY(gdk_display_get_default())) {
+		if (gtk_init_check(&argc, &argv))
 			startup_notification_complete(TRUE);
+	}
+#endif
 #endif
 		return 0;
 	}
@@ -1053,7 +1110,6 @@ int main(int argc, char *argv[])
 
 #ifdef CRASH_DIALOG
 	if (cmd.crash) {
-		gtk_set_locale();
 		gtk_init(&argc, &argv);
 		crash_main(cmd.crash_params);
 #ifdef G_OS_WIN32
@@ -1079,30 +1135,10 @@ int main(int argc, char *argv[])
 	
 	if (cmd.exit)
 		return 0;
-#if !GLIB_CHECK_VERSION(2,32,0)
-	if (!g_thread_supported())
-		g_thread_init(NULL);
-#endif
 
 	reset_statistics();
 	
-	gtk_set_locale();
 	gtk_init(&argc, &argv);
-
-#ifdef G_OS_WIN32
-	gtk_settings_set_string_property(gtk_settings_get_default(),
-			"gtk-theme-name",
-			"MS-Windows",
-			"XProperty");
-	gtk_settings_set_long_property(gtk_settings_get_default(),
-			"gtk-auto-mnemonics",
-			TRUE,
-			"XProperty");
-	gtk_settings_set_long_property(gtk_settings_get_default(),
-			"gtk-button-images",
-			TRUE,
-			"XProperty");
-#endif
 
 #ifdef HAVE_NETWORKMANAGER_SUPPORT
 	went_offline_nm = FALSE;
@@ -1133,18 +1169,10 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	gtk_widget_set_default_colormap(
-		gdk_screen_get_system_colormap(
-			gdk_screen_get_default()));
-
 	gtkut_create_ui_manager();
 
 	/* Create container for all the menus we will be adding */
 	MENUITEM_ADDUI("/", "Menus", NULL, GTK_UI_MANAGER_MENUBAR);
-
-	if (!g_thread_supported()) {
-		g_error(_("g_thread is not supported by glib.\n"));
-	}
 
 #ifdef G_OS_WIN32
 	CHDIR_EXEC_CODE_RETURN_VAL_IF_FAIL(get_home_dir(), 1, win32_close_log(););
@@ -1318,7 +1346,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 	gtkut_widget_init();
-	stock_pixbuf_gdk(STOCK_PIXMAP_CLAWS_MAIL_ICON, &icon);
+	priv_pixbuf_gdk(PRIV_PIXMAP_CLAWS_MAIL_ICON, &icon);
 	gtk_window_set_default_icon(icon);
 
 	folderview_initialize();
@@ -1415,9 +1443,6 @@ int main(int argc, char *argv[])
 		}
 		if(!account_get_list()) {
 			exit_claws(mainwin);
-#ifdef G_OS_WIN32
-			win32_close_log();
-#endif
 			exit(1);
 		}
 		never_ran = TRUE;
@@ -1456,7 +1481,7 @@ int main(int argc, char *argv[])
 	}
 	/* make the crash-indicator file */
 	if (str_write_to_file("foo", get_crashfile_name(), FALSE) < 0) {
-		g_warning("Can't create the crash-indicator file.");
+		g_warning("can't create the crash-indicator file");
 	}
 
 	inc_autocheck_timer_init(mainwin);
@@ -1488,7 +1513,7 @@ int main(int argc, char *argv[])
 
 	num_folder_class = g_list_length(folder_get_list());
 
-	plugin_load_all("GTK2");
+	plugin_load_all("GTK3");
 
 	if (g_list_length(folder_get_list()) != num_folder_class) {
 		debug_print("new folders loaded, reloading processing rules\n");
@@ -1566,9 +1591,6 @@ int main(int argc, char *argv[])
 				   "external plugin. Please reinstall the "
 				   "plugin and try again."));
 			exit_claws(mainwin);
-#ifdef G_OS_WIN32
-			win32_close_log();
-#endif
 			exit(1);
 		}
 	}
@@ -1576,7 +1598,10 @@ int main(int argc, char *argv[])
 	static_mainwindow = mainwin;
 
 #ifdef HAVE_STARTUP_NOTIFICATION
-	startup_notification_complete(FALSE);
+#ifdef GDK_WINDOWING_X11
+	if (GDK_IS_X11_DISPLAY(gdk_display_get_default()))
+		startup_notification_complete(FALSE);
+#endif
 #endif
 #ifdef HAVE_LIBSM
 	sc_session_manager_connect(mainwin);
@@ -1652,9 +1677,6 @@ int main(int argc, char *argv[])
 	uninstall_dbus_status_handler();
 	if(connection)
 		dbus_g_connection_unref(connection);
-#endif
-#ifdef G_OS_WIN32
-	win32_close_log();
 #endif
 	utils_free_regex();
 	exit_claws(mainwin);
@@ -1749,7 +1771,7 @@ static void exit_claws(MainWindow *mainwin)
 
 	main_window_destroy_all();
 	
-	plugin_unload_all("GTK2");
+	plugin_unload_all("GTK3");
 
 	matcher_done();
 	prefs_toolbar_done();
@@ -1780,6 +1802,9 @@ static void exit_claws(MainWindow *mainwin)
 	gtkaspell_checkers_quit();
 #endif
 	plugin_unload_all("Common");
+#ifdef G_OS_WIN32
+	win32_close_log();
+#endif
 	claws_done();
 }
 
@@ -1789,10 +1814,9 @@ static void exit_claws(MainWindow *mainwin)
 		exit(1);	\
 	}
 
-static GString * parse_cmd_compose_from_file(const gchar *fn)
+static void parse_cmd_compose_from_file(const gchar *fn, GString *body)
 {
 	GString *headers = g_string_new(NULL);
-	GString *body = g_string_new(NULL);
 	gchar *to = NULL;
 	gchar *h;
 	gchar *v;
@@ -1849,8 +1873,6 @@ static GString * parse_cmd_compose_from_file(const gchar *fn)
 	/* append the remaining headers */
 	g_string_append(body, headers->str);
 	g_string_free(headers, TRUE);
-
-	return body;
 }
 
 #undef G_PRINT_EXIT
@@ -1866,6 +1888,8 @@ static void parse_cmd_opt_error(char *errstr, char* optstr)
 	g_print(_("%s. Try -h or --help for usage.\n"), tmp);
 	exit(1);
 }
+
+static GString mailto; /* used to feed cmd.compose_mailto when --compose-from-file is used */
 
 static void parse_cmd_opt(int argc, char *argv[])
 {
@@ -1885,9 +1909,9 @@ static void parse_cmd_opt(int argc, char *argv[])
 		    if (i+1 < argc) {
 				const gchar *p = argv[i+1];
 
-				GString *mailto = parse_cmd_compose_from_file(p);
+				parse_cmd_compose_from_file(p, &mailto);
 				cmd.compose = TRUE;
-				cmd.compose_mailto = mailto->str;
+				cmd.compose_mailto = mailto.str;
 				i++;
 		    } else {
                 parse_cmd_opt_error(_("Missing file argument for option %s"), argv[i]);
@@ -2259,7 +2283,8 @@ void app_will_exit(GtkWidget *widget, gpointer data)
 	if (prefs_common.warn_queued_on_exit && procmsg_have_queued_mails_fast()) {
 		if (alertpanel(_("Queued messages"),
 			       _("Some unsent messages are queued. Exit now?"),
-			       GTK_STOCK_CANCEL, GTK_STOCK_OK, NULL, ALERTFOCUS_FIRST)
+			       NULL, _("_Cancel"), NULL, _("_OK"), NULL, NULL,
+			       ALERTFOCUS_FIRST)
 		    != G_ALERTALTERNATE) {
 			main_window_popup(mainwin);
 		    	sc_exiting = FALSE;
@@ -2305,8 +2330,8 @@ gchar *claws_get_socket_name(void)
 		gint stat_ok;
 
 		socket_dir = g_strdup_printf("%s%cclaws-mail",
-                                    g_get_user_runtime_dir(), G_DIR_SEPARATOR);
-        stat_ok = g_stat(socket_dir, &st);
+					   g_get_user_runtime_dir(), G_DIR_SEPARATOR);
+		stat_ok = g_stat(socket_dir, &st);
 		if (stat_ok < 0 && errno != ENOENT) {
 			g_print("Error stat'ing socket_dir %s: %s\n",
 				socket_dir, g_strerror(errno));
@@ -2314,6 +2339,7 @@ gchar *claws_get_socket_name(void)
 			/* old versions used a sock in $TMPDIR/claws-mail-$UID */
 			debug_print("Using legacy socket %s\n", socket_dir);
 			filename = g_strdup(socket_dir);
+			g_free(socket_dir);
 			return filename;
 		}
 
@@ -2346,7 +2372,7 @@ static gchar *get_crashfile_name(void)
 	return filename;
 }
 
-static gint prohibit_duplicate_launch(void)
+static gint prohibit_duplicate_launch(int *argc, char ***argv)
 {
 	gint sock;
 	GList *curr;
@@ -2356,9 +2382,6 @@ static gint prohibit_duplicate_launch(void)
 	path = claws_get_socket_name();
 	/* Try to connect to the control socket */
 	sock = fd_connect_unix(path);
-	
-	if (x_display == NULL)
-		x_display = g_strdup(g_getenv("DISPLAY"));
 
 	if (sock < 0) {
 		gint ret;
@@ -2503,7 +2526,7 @@ static gint prohibit_duplicate_launch(void)
 			buf[sizeof(buf) - 1] = '\0';
  			if (!STRNCMP(buf, ".\n")) break;
 			if (claws_fputs(buf, stdout) == EOF) {
-				g_warning("writing to stdout failed.");
+				g_warning("writing to stdout failed");
 				break;
 			}
  		}
@@ -2517,7 +2540,7 @@ static gint prohibit_duplicate_launch(void)
 			buf[sizeof(buf) - 1] = '\0';
  			if (!STRNCMP(buf, ".\n")) break;
 			if (claws_fputs(buf, stdout) == EOF) {
-				g_warning("writing to stdout failed.");
+				g_warning("writing to stdout failed");
 				break;
 			}
  		}
@@ -2540,7 +2563,7 @@ static gint prohibit_duplicate_launch(void)
 			buf[sizeof(buf) - 1] = '\0';
 			if (!STRNCMP(buf, ".\n")) break;
 			if (claws_fputs(buf, stdout) == EOF) {
-				g_warning("writing to stdout failed.");
+				g_warning("writing to stdout failed");
 				break;
 			}
 		}
@@ -2551,10 +2574,20 @@ static gint prohibit_duplicate_launch(void)
 		memset(buf, 0, sizeof(buf));
 		fd_gets(sock, buf, sizeof(buf) - 1);
 		buf[sizeof(buf) - 1] = '\0';
-		if (g_strcmp0(buf, x_display)) {
+
+		/* Try to connect to a display; if it is the same one as
+		 * the other Claws instance, then ask it to pop up. */
+		int diff_display = 1;
+		if (gtk_init_check(argc, argv)) {
+			GdkDisplay *display = gdk_display_get_default();
+			diff_display = g_strcmp0(buf, gdk_display_get_name(display));
+		}
+		if (diff_display) {
 			g_print("Claws Mail is already running on display %s.\n",
 				buf);
 		} else {
+			g_print("Claws Mail is already running on this display (%s).\n",
+				buf);
 			fd_close(sock);
 			sock = fd_connect_unix(path);
 			CM_FD_WRITE_ALL("popup\n");
@@ -2585,7 +2618,8 @@ static gint lock_socket_remove(void)
 #ifdef G_OS_UNIX
 	filename = claws_get_socket_name();
 	dirname = g_path_get_dirname(filename);
-	claws_unlink(filename);
+	if (claws_unlink(filename) < 0)
+                FILE_OP_ERROR(filename, "claws_unlink");
 	g_rmdir(dirname);
 	g_free(dirname);
 #endif
@@ -2639,7 +2673,9 @@ static void lock_socket_input_cb(gpointer data,
 		main_window_popup(mainwin);
 #ifdef G_OS_UNIX
 	} else if (!STRNCMP(buf, "get_display")) {
-		CM_FD_WRITE_ALL(x_display);
+		GdkDisplay* display = gtk_widget_get_display(mainwin->window);
+		const gchar *display_name = gdk_display_get_name(display);
+		CM_FD_WRITE_ALL(display_name);
 #endif
 	} else if (!STRNCMP(buf, "receive_all")) {
 		inc_all_account_mail(mainwin, FALSE, FALSE,
@@ -2892,12 +2928,14 @@ static void send_queue(void)
 	}
 }
 
+#ifndef G_OS_WIN32
 static void quit_signal_handler(int sig)
 {
 	debug_print("Quitting on signal %d\n", sig);
 
 	g_timeout_add(0, clean_quit, NULL);
 }
+#endif
 
 static void install_basic_sighandlers()
 {

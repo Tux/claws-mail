@@ -1,7 +1,7 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2009 Colin Leroy <colin@colino.net> and 
- * the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 the Claws Mail team and
+ * Colin Leroy <colin@colino.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,9 +35,6 @@
 #ifdef USE_PTHREAD
 #include <pthread.h>
 #endif
-#include <errno.h>
-
-#include <glib.h>
 
 #include "common/claws.h"
 #include "common/version.h"
@@ -175,6 +172,7 @@ static void bsfilter_do_filter(BsFilterData *data)
 #endif
 		status = execute_command_line(classify, FALSE,
 				claws_get_startup_dir());
+		g_free(classify);
 	}
 
 	if (config.whitelist_ab)
@@ -461,6 +459,7 @@ int bsfilter_learn(MsgInfo *msginfo, GSList *msglist, gboolean spam)
 	if (msginfo == NULL && msglist == NULL) {
 		return -1;
 	}
+	/* process *either* a msginfo or a msglist */
 	if (msginfo != NULL && msglist == NULL) {
 		msglist = g_slist_append(NULL, msginfo);
 		free_list = TRUE;
@@ -511,7 +510,7 @@ void bsfilter_save_config(void)
 		return;
 
 	if (prefs_write_param(param, pfile->fp) < 0) {
-		g_warning("Failed to write Bsfilter configuration to file");
+		g_warning("failed to write Bsfilter configuration to file");
 		prefs_file_close_revert(pfile);
 		return;
 	}
@@ -630,7 +629,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)
@@ -657,7 +656,7 @@ void bsfilter_register_hook(void)
 	if (hook_id == HOOK_NONE)
 		hook_id = hooks_register_hook(MAIL_FILTERING_HOOKLIST, mail_filtering_hook, NULL);
 	if (hook_id == HOOK_NONE) {
-		g_warning("Failed to register mail filtering hook");
+		g_warning("failed to register mail filtering hook");
 		config.process_emails = FALSE;
 	}
 }

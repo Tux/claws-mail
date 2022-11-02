@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- A GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- A GTK based, lightweight, and fast e-mail client
  * Copyright(C) 2019 the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,9 +33,8 @@ static GdkPixbuf *lh_get_image(const litehtml::tchar_t* url)
 {
 	GError *error = NULL;
 	GdkPixbuf *pixbuf = NULL;
-	http* http_loader = NULL;
 
-	http_loader = new http();
+	http* http_loader = new http();
 	GInputStream *image = http_loader->load_url(url, &error);
 
 	if (error || !image) {
@@ -56,9 +55,7 @@ static GdkPixbuf *lh_get_image(const litehtml::tchar_t* url)
 	}
 
 theend:
-	if (http_loader) {
-		delete http_loader;
-	}
+	delete http_loader;
 
 	return pixbuf;
 }
@@ -173,13 +170,13 @@ void container_linux::update_image_cache(const gchar *url, GdkPixbuf *image)
 	lock_images_cache();
 	auto i = m_images.find(url);
 	if(i == m_images.end()) {
-		g_warning("image '%s' was not found in pixbuf cache\n", url);
+		g_warning("image '%s' was not found in pixbuf cache", url);
 		unlock_images_cache();
 		return;
 	}
 
 	if(i->second.first != NULL && i->second.first != image) {
-		g_warning("pixbuf pointer for image '%s' changed\n", url);
+		g_warning("pixbuf pointer for image '%s' changed", url);
 		g_object_unref(i->second.first);
 	}
 
@@ -229,11 +226,13 @@ gint container_linux::clear_images(gsize desired_size)
 	lock_images_cache();
 
 	/* First, remove all local images - the ones with "cid:" URL. */
-	for (auto i = m_images.begin(); i != m_images.end(); ++i) {
+	for (auto i = m_images.begin(); i != m_images.end(); ) {
 		if (!strncmp(i->first.c_str(), "cid:", 4)) {
 			g_object_unref(i->second.first);
 			i = m_images.erase(i);
 			num++;
+		} else {
+			++i;
 		}
 	}
 
@@ -261,7 +260,7 @@ gint container_linux::clear_images(gsize desired_size)
 		auto i = m_images.find(l->first);
 
 		if(i == m_images.end()) {
-			g_warning("failed to find '%s' in m_images\n", l->first.c_str());
+			g_warning("failed to find '%s' in m_images", l->first.c_str());
 			continue;
 		}
 

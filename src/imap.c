@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2020 the Claws Mail team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,7 +72,9 @@
 #include "main.h"
 #include "passwordstore.h"
 #include "file-utils.h"
+#ifdef USE_OAUTH2
 #include "oauth2.h"
+#endif
 
 typedef struct _IMAPFolder	IMAPFolder;
 typedef struct _IMAPSession	IMAPSession;
@@ -748,7 +750,7 @@ static void imap_handle_error(Session *session, const gchar *server, int libetpa
 		break;
 #ifdef USE_GNUTLS
 	case MAILIMAP_ERROR_SSL:
-		MY_LOG_WARNING(g_strconcat(_("IMAP error on %s:"), " ", _("SSL/TLS error"), "\n", NULL), session_server)
+		MY_LOG_WARNING(g_strconcat(_("IMAP error on %s:"), " ", _("TLS error"), "\n", NULL), session_server)
 		break;
 #endif
 	default:
@@ -913,9 +915,11 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 	case IMAP_AUTH_PLAIN:
 		ok = imap_cmd_login(session, user, pass, "PLAIN");
 		break;
+#ifdef USE_GNUTLS
 	case IMAP_AUTH_OAUTH2:
 		ok = imap_cmd_login(session, user, pass, "XOAUTH2");
 		break;
+#endif
 	case IMAP_AUTH_LOGIN:
 		ok = imap_cmd_login(session, user, pass, "LOGIN");
 		break;
@@ -932,7 +936,9 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 				"\t DIGEST-MD5 %d\n"
 				"\t SCRAM-SHA-1 %d\n"
 				"\t PLAIN %d\n"
+#ifdef USE_GNUTLS
 				"\t OAUTH2 %d\n"
+#endif
 				"\t LOGIN %d\n"
 				"\t GSSAPI %d\n", 
 			imap_has_capability(session, "ANONYMOUS"),
@@ -940,7 +946,9 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 			imap_has_capability(session, "DIGEST-MD5"),
 			imap_has_capability(session, "SCRAM-SHA-1"),
 			imap_has_capability(session, "PLAIN"),
+#ifdef USE_GNUTLS
 			imap_has_capability(session, "XOAUTH2"),
+#endif
 			imap_has_capability(session, "LOGIN"),
 			imap_has_capability(session, "GSSAPI"));
 		if (imap_has_capability(session, "CRAM-MD5"))
@@ -957,8 +965,10 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 			ok = imap_cmd_login(session, user, pass, "GSSAPI");
 		if (ok == MAILIMAP_ERROR_LOGIN) /* we always try plaintext login before giving up */
 			ok = imap_cmd_login(session, user, pass, "plaintext");
+#ifdef USE_GNUTLS
 		if (ok == MAILIMAP_ERROR_LOGIN && imap_has_capability(session, "XOAUTH2"))
 			ok = imap_cmd_login(session, user, pass, "XOAUTH2");
+#endif
 	}
 
 	if (ok == MAILIMAP_NO_ERROR)
@@ -993,12 +1003,12 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 				     "compiled with SASL support and the "
 				     "LOGIN SASL plugin is installed.");
 		}
-
+#ifdef USE_GNUTLS
 		if (type == IMAP_AUTH_OAUTH2) {
 			ext_info = _("\n\nOAuth2 error. Check and correct your OAuth2 "
 				     "account preferences.");
 		} 
-
+#endif
 		if (time(NULL) - last_login_err > 10) {
 			if (!prefs_common.no_recv_err_panel) {
 				alertpanel_error_log(_("Connection to %s failed: "
@@ -1175,13 +1185,13 @@ static IMAPSession *imap_session_new(Folder * folder,
 	if (account->ssl_imap != SSL_NONE) {
 		if (alertpanel_full(_("Insecure connection"),
 			_("This connection is configured to be secured "
-			  "using SSL/TLS, but SSL/TLS is not available "
+			  "using TLS, but TLS is not available "
 			  "in this build of Claws Mail. \n\n"
 			  "Do you want to continue connecting to this "
 			  "server? The communication would not be "
 			  "secure."),
-			  GTK_STOCK_CANCEL, _("Con_tinue connecting"), NULL,
-				ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE)
+			  NULL, _("_Cancel"), NULL, _("Con_tinue connecting"), NULL, NULL,
+			  ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE)
 			return NULL;
 	}
 	port = account->set_imapport ? account->imapport
@@ -1248,7 +1258,7 @@ static IMAPSession *imap_session_new(Folder * folder,
 	else {
 #ifdef USE_GNUTLS
 		if (r == MAILIMAP_ERROR_SSL)
-			log_error(LOG_PROTOCOL, _("SSL/TLS handshake failed\n"));
+			log_error(LOG_PROTOCOL, _("TLS handshake failed\n"));
 		else
 #endif
 			imap_handle_error(NULL, account->recv_server, r);
@@ -1320,10 +1330,10 @@ static gint imap_session_authenticate(IMAPSession *session,
 	gboolean failed = FALSE;
 	gint ok = MAILIMAP_NO_ERROR;
 	g_return_val_if_fail(account->userid != NULL, MAILIMAP_ERROR_BAD_STATE);
-
+#ifdef USE_OAUTH2
 	if(account->imap_auth_type == IMAP_AUTH_OAUTH2)
 	        oauth2_check_passwds (account);
-	
+#endif
 	if (!password_get(account->userid, account->recv_server, "imap",
 			 SESSION(session)->port, &acc_pass)) {
 		acc_pass = passwd_store_get_account(account->account_id,
@@ -1952,7 +1962,7 @@ static gint imap_do_copy_msgs(Folder *folder, FolderItem *dest,
 	msginfo = (MsgInfo *)msglist->data;
 	src = msginfo->folder;
 	if (!same_dest_ok && src == dest) {
-		g_warning("the src folder is identical to the dest.");
+		g_warning("the src folder is identical to the dest");
 		return -1;
 	}
 
@@ -3117,12 +3127,12 @@ static FolderItem *imap_create_special_folder(Folder *folder,
 	new_item = imap_create_folder(folder, item, name);
 
 	if (!new_item) {
-		g_warning("Can't create '%s'", name);
+		g_warning("can't create '%s'", name);
 		if (!folder->inbox) return NULL;
 
 		new_item = imap_create_folder(folder, folder->inbox, name);
 		if (!new_item)
-			g_warning("Can't create '%s' under INBOX", name);
+			g_warning("can't create '%s' under INBOX", name);
 		else
 			new_item->stype = stype;
 	} else
@@ -3226,9 +3236,11 @@ static FolderItem *imap_create_folder(Folder *folder, FolderItem *parent,
 		gchar *cached_msg = imap_get_cached_filename(parent, to_number(name));
 		if (is_file_exist(cached_msg)) {
 			if (claws_unlink(cached_msg) != 0) {
+				g_free(cached_msg);
 				return NULL;
 			}
 		}
+		g_free(cached_msg);
 	}
 
 	debug_print("getting session...\n");
@@ -3266,6 +3278,7 @@ static FolderItem *imap_create_folder(Folder *folder, FolderItem *parent,
 
 	separator = imap_get_path_separator(session, IMAP_FOLDER(folder), imap_path, &ok);
 	if (is_fatal(ok)) {
+		g_free(dirpath);
 		g_free(imap_path);
 		return NULL;
 	}
@@ -3384,8 +3397,7 @@ static gint imap_rename_folder(Folder *folder, FolderItem *item,
 
 	if (strchr(name, imap_get_path_separator(session, IMAP_FOLDER(folder), item->path, &ok)) != NULL ||
 		is_fatal(ok)) {
-		g_warning("New folder name must not contain the namespace "
-			    "path separator");
+		g_warning("new folder name must not contain the namespace path separator");
 		return -1;
 	}
 

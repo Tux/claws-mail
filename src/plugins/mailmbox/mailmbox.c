@@ -47,7 +47,6 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #include <string.h>
 #include <ctype.h>
@@ -65,8 +64,6 @@
   http://www.qmail.org/qmail-manual-html/man5/mbox.html
   RFC 2076
 */
-
-#define TMPDIR "/tmp"
 
 /* mbox is a file with a corresponding filename */
 

@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2017 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,6 @@
 #include "claws-features.h"
 #endif
 
-#if (defined (_XOPEN_SOURCE) && !defined (_BSD_SOURCE))
-#define _BSD_SOURCE
-#endif
-
 /* This can probably be handled better, e.g. define it in config.h. */
 #define _WIN32_WINNT _WIN32_WINNT_WIN6
 #include <glib.h>
@@ -37,7 +33,6 @@
 #  ifndef EINPROGRESS
 #    define EINPROGRESS WSAEINPROGRESS
 #  endif
-#  include "w32lib.h"
 #else
 #  if HAVE_SYS_WAIT_H
 #    include <sys/wait.h>
@@ -134,14 +129,13 @@ static guint io_timeout = 60;
 
 static GList *sock_connect_data_list = NULL;
 
+#ifdef USE_GNUTLS
 static gboolean ssl_sock_prepare	(GSource	*source,
 					 gint		*timeout);
 static gboolean ssl_sock_check		(GSource	*source);
 static gboolean ssl_sock_dispatch	(GSource	*source,
 					 GSourceFunc	 callback,
 					 gpointer	 user_data);
-
-#ifdef USE_GNUTLS
 GSourceFuncs ssl_watch_funcs = {
 	ssl_sock_prepare,
 	ssl_sock_check,
@@ -567,7 +561,7 @@ static gint fd_check_io(gint fd, GIOCondition cond)
 	if (FD_ISSET(fd, &fds)) {
 		return 0;
 	} else {
-		g_warning("Socket IO timeout");
+		g_warning("socket IO timeout");
 		log_error(LOG_PROTOCOL, _("Socket IO timeout.\n"));
 		return -1;
 	}
@@ -919,7 +913,7 @@ static gboolean sock_get_address_info_async_cb(GIOChannel *source,
 	
 	g_io_channel_set_encoding(source, NULL, &err);
 	if (err) {
-		g_warning("can unset encoding: %s", err->message);
+		g_warning("can't unset encoding: %s", err->message);
 		g_error_free(err);
 		return FALSE;
 	}
@@ -1281,7 +1275,7 @@ static gint ssl_read(gnutls_session_t ssl, gchar *buf, gint len)
 			return -1;
 
 		default:
-			debug_print("Unexpected SSL/TLS read result %d\n", r);
+			debug_print("Unexpected TLS read result %d\n", r);
 			errno = EIO;
 			return -1;
 		}
@@ -1429,6 +1423,7 @@ gint sock_write_all(SockInfo *sock, const gchar *buf, gint len)
 	return ret;
 }
 
+#ifndef G_OS_WIN32
 static gint fd_recv(gint fd, gchar *buf, gint len, gint flags)
 {
 	if (fd_check_io(fd, G_IO_IN) < 0)
@@ -1436,6 +1431,7 @@ static gint fd_recv(gint fd, gchar *buf, gint len, gint flags)
 
 	return recv(fd, buf, len, flags);
 }
+#endif
 
 gint fd_gets(gint fd, gchar *buf, gint len)
 {

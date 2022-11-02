@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -30,9 +30,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef G_OS_WIN32
-#include "w32lib.h"
-#else
+#ifndef G_OS_WIN32
 #include <sys/time.h>
 #endif
 

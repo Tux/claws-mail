@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 2003-2018 Michael Rasmussen and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1133,6 +1133,7 @@ void ldapsvr_update_contact(LdapServer *server, GHashTable *contact) {
 				log_error(LOG_PROTOCOL, _("LDAP error (rename): from '%s' to '%s': %d (%s)\n"),
 						dn, newRdn, rc, ldaputil_get_error(ld));
 				g_free(newRdn);
+				rdn_free(NoRemove);
 				clean_up(ld, server, contact);
 				return;
 			}

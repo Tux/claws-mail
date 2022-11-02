@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2008-2009  Christian Hammond
  * Copyright (c) 2008-2009  David Trowbridge
+ * Copyright (C) 2021 the Claws Mail Team
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+#include "config.h"
+
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
 
@@ -69,12 +73,8 @@ static gboolean parasite_python_shell_key_press_cb(GtkWidget *textview,
 static GtkVBoxClass *parent_class = NULL;
 //static guint signals[LAST_SIGNAL] = {0};
 
-#if !GLIB_CHECK_VERSION(2, 58, 0)
-G_DEFINE_TYPE(ParasitePythonShell, parasite_python_shell, GTK_TYPE_VBOX);
-#else
 G_DEFINE_TYPE_WITH_CODE(ParasitePythonShell, parasite_python_shell,
     GTK_TYPE_VBOX, G_ADD_PRIVATE(ParasitePythonShell))
-#endif
 
 
 static void
@@ -85,10 +85,6 @@ parasite_python_shell_class_init(ParasitePythonShellClass *klass)
     parent_class = g_type_class_peek_parent(klass);
 
     object_class->finalize = parasite_python_shell_finalize;
-
-#if !GLIB_CHECK_VERSION(2, 58, 0)
-    g_type_class_add_private(klass, sizeof(ParasitePythonShellPrivate));
-#endif
 }
 
 static void
@@ -128,7 +124,7 @@ parasite_python_shell_init(ParasitePythonShell *python_shell)
     /* Make the textview monospaced */
     font_desc = pango_font_description_from_string("monospace");
     pango_font_description_set_size(font_desc, 10 * PANGO_SCALE);
-    gtk_widget_modify_font(priv->textview, font_desc);
+    gtk_widget_override_font(priv->textview, font_desc);
     pango_font_description_free(font_desc);
 
     /* Create the end-of-buffer mark */
@@ -339,25 +335,20 @@ parasite_python_shell_key_press_cb(GtkWidget *textview,
                                    GdkEventKey *event,
                                    GtkWidget *python_shell)
 {
-    if (event->keyval == GDK_KEY_Return)
+    if (event && (event->keyval == GDK_KEY_KP_Enter ||
+	event->keyval == GDK_KEY_Return))
     {
         parasite_python_shell_process_line(python_shell);
         return TRUE;
-    }
-    else if (event->keyval == GDK_KEY_Up)
-    {
+    } else if (event && event->keyval == GDK_KEY_Up) {
         parasite_python_shell_replace_input(python_shell,
             parasite_python_shell_get_history_back(python_shell));
         return TRUE;
-    }
-    else if (event->keyval == GDK_KEY_Down)
-    {
+    } else if (event && event->keyval == GDK_KEY_Down) {
         parasite_python_shell_replace_input(python_shell,
             parasite_python_shell_get_history_forward(python_shell));
         return TRUE;
-    }
-    else if (event->string != NULL)
-    {
+    } else if (event && event->string != NULL) {
         ParasitePythonShellPrivate *priv =
             PARASITE_PYTHON_SHELL_GET_PRIVATE(python_shell);
         GtkTextBuffer *buffer =
@@ -384,27 +375,18 @@ parasite_python_shell_key_press_cb(GtkWidget *textview,
                                                   &selection_iter);
 
         if (cmp_start_insert == 0 && cmp_start_select == 0 &&
-            (event->keyval == GDK_KEY_BackSpace ||
-             event->keyval == GDK_KEY_Left))
-        {
+            event && (event->keyval == GDK_KEY_BackSpace ||
+             event->keyval == GDK_KEY_Left)) {
             return TRUE;
         }
         if (cmp_start_insert <= 0 && cmp_start_select <= 0)
-        {
             return FALSE;
-        }
         else if (cmp_start_insert > 0 && cmp_start_select > 0)
-        {
             gtk_text_buffer_place_cursor(buffer, &start_iter);
-        }
         else if (cmp_insert_select < 0)
-        {
             gtk_text_buffer_move_mark(buffer, insert_mark, &start_iter);
-        }
         else if (cmp_insert_select > 0)
-        {
             gtk_text_buffer_move_mark(buffer, selection_mark, &start_iter);
-        }
     }
 
     return FALSE;

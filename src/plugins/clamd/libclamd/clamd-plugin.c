@@ -1,7 +1,7 @@
 /* vim: set textwidth=80 tabstop=4: */
 
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2017 Michael Rasmussen and the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -94,12 +94,11 @@ void clamd_create_config_automatic(const gchar* path) {
 	FILE* conf;
 	char buf[1024];
 	gchar* key = NULL;
-	gchar* value = NULL;
 
 	/*debug_set_mode(TRUE);*/
 	/*debug_print("%s : %s\n", folder, path);*/
 	if (! path) {
-		g_warning("Missing path");
+		g_warning("missing path");
 		return;
 	}
 	if (config && config->ConfigType == AUTOMATIC &&
@@ -130,6 +129,8 @@ void clamd_create_config_automatic(const gchar* path) {
 		while (*tokens) {
 			const gchar* token = *tokens++;
 			if ((key = g_strstr_len(buf, strlen(buf), token)) != NULL) {
+				gchar* value = NULL;
+
 				gchar* tmp = &(*(key + strlen(token)));
 				tmp = g_strchug(tmp);
 				gchar* end = index(tmp, '#');
@@ -146,7 +147,6 @@ void clamd_create_config_automatic(const gchar* path) {
 						Socket->type = UNIX_SOCKET;
 						Socket->socket.path = g_strdup(value);
 						g_free(value);
-						value = NULL;
 						claws_fclose(conf);
 						debug_print("clamctl: %s\n", Socket->socket.path);
 						return;
@@ -162,8 +162,6 @@ void clamd_create_config_automatic(const gchar* path) {
 							Socket->type = INET_SOCKET;
 							Socket->socket.port = atoi(value);
 							Socket->socket.host = g_strdup("localhost");
-							g_free(value);
-							value = NULL;
 							debug_print("clamctl: %s:%d\n", 
 								Socket->socket.host, Socket->socket.port);
 						}
@@ -171,8 +169,6 @@ void clamd_create_config_automatic(const gchar* path) {
 					else {
 						Socket->type = INET_SOCKET;
 						Socket->socket.port = atoi(value);
-						g_free(value);
-						value = NULL;
 						if (! Socket->socket.host)
 							Socket->socket.host = g_strdup("localhost");
 						debug_print("clamctl: %s:%d\n", 
@@ -188,8 +184,6 @@ void clamd_create_config_automatic(const gchar* path) {
 							Socket->socket.port = 3310; /* default port */
 							Socket->type = INET_SOCKET;
 							Socket->socket.host = g_strdup(value);
-							g_free(value);
-							value = NULL;
 							debug_print("clamctl: %s:%d\n", 
 								Socket->socket.host, Socket->socket.port);
 						}
@@ -199,8 +193,6 @@ void clamd_create_config_automatic(const gchar* path) {
 						if (Socket->socket.host)
 							g_free(Socket->socket.host);
 						Socket->socket.host = g_strdup(value);
-						g_free(value);
-						value = NULL;
 						if (Socket->socket.port == -1)
 							Socket->socket.port = 3310;
 						debug_print("clamctl: %s:%d\n", 
@@ -208,6 +200,7 @@ void clamd_create_config_automatic(const gchar* path) {
 					}
 					/* We must continue since TCPSocket could also be configured */
 				}
+				g_free(value);
 			}
 		}
 	}
@@ -221,7 +214,7 @@ void clamd_create_config_automatic(const gchar* path) {
 
 void clamd_create_config_manual(const gchar* host, int port) {
 	if (! host || port < 1) {
-		g_warning("Missing host or port < 1");
+		g_warning("missing host or port < 1");
 		return;
 	}
 	if (config && config->ConfigType == MANUAL &&
@@ -603,11 +596,13 @@ GSList* clamd_verify_dir(const gchar* path) {
 	if (write(sock, command, strlen(command)) == -1) {
 		debug_print("write error %d\n", errno);
 		close(sock);
+		g_free(command);
 		return list;
 	}
 	g_free(command);
 	memset(buf, '\0', sizeof(buf));
 	while ((n_read = read(sock, buf, BUFSIZ - 1)) > 0) {
+        buf[n_read] = 0;
 		gchar** tmp = g_strsplit(buf, "\n", 0);
 		gchar** head = tmp;
 		while (*tmp) {

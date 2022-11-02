@@ -17,6 +17,8 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#include "config.h"
+
 #include <glib.h>
 #include <curl/curl.h>
 #include <expat.h>
@@ -85,7 +87,7 @@ void opml_process(gchar *path, OPMLProcessFunc function, gpointer data)
 	gint status, err;
 
 	/* Initialize our context */
-	ctx = malloc( sizeof(OPMLProcessCtx) );
+	ctx = g_malloc( sizeof(OPMLProcessCtx) );
 	ctx->parser = XML_ParserCreate(NULL);
 	ctx->depth = 0;
 	ctx->str = NULL;
@@ -102,30 +104,33 @@ void opml_process(gchar *path, OPMLProcessFunc function, gpointer data)
 	XML_SetUnknownEncodingHandler(ctx->parser,
 			feed_parser_unknown_encoding_handler, NULL);
 
-	g_file_get_contents(path, &contents, NULL, &error);
+	if( !g_file_get_contents(path, &contents, NULL, &error) ) {
+		g_warning("error: '%s'", error->message);
+		g_error_free(error);
+	}    
 
-	if( error || !contents )
-		return;
-
+	if( contents ) {
 /*
-	lines = g_strsplit(contents, '\n', 0);
+		lines = g_strsplit(contents, '\n', 0);
 
-	while( lines[i] ) {
-		status = XML_Parse(ctx->parser, lines[i], strlen(lines[i]), FALSE);
-		if( status == XML_STATUS_ERROR ) {
-			err = XML_GetErrorCode(ctx->parser);
-			sprintf(stderr, "\nExpat: --- %s\n\n", XML_ErrorString(err));
+		while( lines[i] ) {
+			status = XML_Parse(ctx->parser, lines[i], strlen(lines[i]), FALSE);
+			if( status == XML_STATUS_ERROR ) {
+				err = XML_GetErrorCode(ctx->parser);
+				sprintf(stderr, "\nExpat: --- %s\n\n", XML_ErrorString(err));
+			}
 		}
-	}
 */
-
-	status = XML_Parse(ctx->parser, contents, strlen(contents), FALSE);
-	err = XML_GetErrorCode(ctx->parser);
-	fprintf(stderr, "\nExpat: --- %s (%s)\n\n", XML_ErrorString(err),
+		status = XML_Parse(ctx->parser, contents, strlen(contents), FALSE);
+		err = XML_GetErrorCode(ctx->parser);
+		fprintf(stderr, "\nExpat: --- %s (%s)\n\n", XML_ErrorString(err),
 			(status == XML_STATUS_OK ? "OK" : "NOT OK"));
 
-	XML_Parse(ctx->parser, "", 0, TRUE);
+		XML_Parse(ctx->parser, "", 0, TRUE);
+	}    
 
 	XML_ParserFree(ctx->parser);
+	if (ctx->str != NULL)
+		g_string_free(ctx->str, TRUE);
 	g_free(ctx);
 }

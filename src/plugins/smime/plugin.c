@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2012 Colin Leroy <colin@colino.net> and 
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2021 Colin Leroy <colin@colino.net> and 
  * the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,10 +32,12 @@
 #include "common/claws.h"
 #include "smime.h"
 
+#define PLUGIN_NAME (_("S/MIME"))
+
 gint plugin_init(gchar **error)
 {
-	if (!check_plugin_version(MAKE_NUMERIC_VERSION(2,9,2,72),
-				VERSION_NUMERIC, _("S/MIME"), error))
+	if (!check_plugin_version(MAKE_NUMERIC_VERSION(4,0,0,343),
+				VERSION_NUMERIC, PLUGIN_NAME, error))
 		return -1;
 
 	smime_init();
@@ -51,7 +53,7 @@ gboolean plugin_done(void)
 
 const gchar *plugin_name(void)
 {
-	return _("S/MIME");
+	return PLUGIN_NAME;
 }
 
 const gchar *plugin_desc(void)
@@ -77,7 +79,7 @@ const gchar *plugin_desc(void)
 
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 const gchar *plugin_licence(void)

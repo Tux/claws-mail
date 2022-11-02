@@ -19,7 +19,6 @@
 #define NOTIFICATION_PREFS_H NOTIFICATION_PREFS_H
 
 #ifdef HAVE_CONFIG_H
-#  include "config.h"
 #  include "claws-features.h"
 #endif
 
@@ -57,8 +56,8 @@ typedef struct {
   gint             banner_root_y;
   gboolean         banner_folder_specific;
   gboolean         banner_enable_colors;
-  gulong           banner_color_bg;
-  gulong           banner_color_fg;
+  GdkRGBA          banner_color_bg;
+  GdkRGBA          banner_color_fg;
 	gint             banner_width;
 #endif
 #ifdef NOTIFICATION_POPUP
@@ -71,8 +70,8 @@ typedef struct {
   gint             popup_root_y;
   gint             popup_width;
   gboolean         popup_enable_colors;
-  gulong           popup_color_bg;
-  gulong           popup_color_fg;
+  GdkRGBA          popup_color_bg;
+  GdkRGBA          popup_color_fg;
 #else /* HAVE_LIBNOTIFY */
   gboolean         popup_display_folder_name;
 #endif /* HAVE_LIBNOTIFY */

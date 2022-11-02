@@ -1,8 +1,16 @@
 
-AC_PREREQ(2.59)
-AC_INIT(src/main.c)
-AC_CONFIG_AUX_DIR(config)
+AC_PREREQ([2.69])
+
+m4_define([claws_VERSION],
+    m4_esyscmd([./get-git-version]))
+
+AC_INIT([claws-mail],
+    m4_defn([claws_VERSION]))
+AC_CONFIG_SRCDIR([src/main.c])
+AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CANONICAL_TARGET
+AM_INIT_AUTOMAKE([no-define])
 
 PACKAGE=claws-mail
 
@@ -10,19 +18,9 @@ dnl version number
 INTERFACE_AGE=0
 BINARY_AGE=0
 EXTRA_RELEASE=
-EXTRA_GTK2_VERSION=
+EXTRA_GTK3_VERSION=
 
-if test \( -d .git \); then
-    AC_CHECK_PROG([GIT], [git], [yes], [no], [$PATH])
-    if test \( "$GIT" = "no" \); then
-	AC_MSG_ERROR([*** git not found. See http://git-scm.com/])
-    else
-	GIT_VERSION=`git describe --abbrev=6 --dirty --always`
-	echo "echo ${GIT_VERSION}" > ./version
-    fi
-else
-    GIT_VERSION=`sh -c ". $srcdir/version"`
-fi
+GIT_VERSION=m4_defn([claws_VERSION])
 
 if test \( -z "$GIT_VERSION" \); then
 	AC_MSG_ERROR([*** could not determine program version])
@@ -44,14 +42,9 @@ else
 fi
 
 if test \( "x$EXTRA_RELEASE" != "x" \); then
-    VERSION=${VERSION}${EXTRA_RELEASE}${EXTRA_GTK2_VERSION}
+    VERSION=${VERSION}${EXTRA_RELEASE}${EXTRA_GTK3_VERSION}
 fi
 
-dnl set $target
-AC_CANONICAL_SYSTEM
-
-dnl
-AM_INIT_AUTOMAKE($PACKAGE, $VERSION, no-define)
 dnl AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
 dnl AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
 AC_SUBST(PACKAGE)
@@ -90,24 +83,30 @@ AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_HEADERS(claws-features.h)
 
 AM_MAINTAINER_MODE
+AC_USE_SYSTEM_EXTENSIONS
 
 dnl Checks for programs.
 dnl AC_ARG_PROGRAM
 AC_PROG_CC
-AC_ISC_POSIX
+AC_SEARCH_LIBS([strerror],[cposix])
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_CPP
 dnl AC_PROG_RANLIB
-AM_PROG_LEX
+AC_PROG_LEX(noyywrap)
 AC_PROG_YACC
 AC_LIB_PREFIX
-AC_LIBTOOL_WIN32_DLL
+AU_DEFUN([AC_LIBTOOL_WIN32_DLL],
+[AC_REQUIRE(AC_CANONICAL_HOST)_LT_SET_OPTION([LT_INIT],[win32-dll])
+m4_warn([obsolete],[AC_LIBTOOL_WIN32_DLL: Remove this warning and the call to _LT_SET_OPTION when you
+put the 'win32-dll' option into LT_INIT's first parameter.])
+])
+
 LT_INIT
-LT_AC_PROG_RC
-AC_LIBTOOL_RC
-AC_PROG_LIBTOOL
+LT_PROG_RC
+LT_LANG([Windows Resource])
+LT_INIT
 AC_PROG_AWK
 
 dnl AC_PROG_CXX will set CXX=g++ even if it finds no useable C++
@@ -125,7 +124,7 @@ AC_SYS_LARGEFILE
 dnl ******************************
 dnl Checks for host
 dnl Not needed anymore because we
-dnl do AC_CANONICAL_SYSTEM above
+dnl do AC_CANONICAL_TARGET above
 dnl ******************************
 dnl AC_CANONICAL_HOST
 
@@ -174,10 +173,30 @@ esac
 AC_MSG_RESULT([$env_cygwin])
 AM_CONDITIONAL(CYGWIN, test x"$env_cygwin" = x"yes")
 
-if test "$GCC" = "yes"
-then
-	CFLAGS="$CFLAGS -Wno-unused-function"
-	#CFLAGS="-g -Wall -Wno-unused-function"
+AC_MSG_CHECKING([for time_t format specifier])
+_gcc_cflags_save=$CFLAGS
+CFLAGS="-Wformat -Werror"
+AC_COMPILE_IFELSE([
+	AC_LANG_PROGRAM([[
+		#include <stdio.h>
+		#include <time.h>
+		]],[[printf("%lld", time(NULL));]])],
+	[time_t_long_long=yes],
+	[time_t_long_long=no])
+CFLAGS=$_gcc_cflags_save
+
+if test x"$time_t_long_long" = xyes; then
+	time_t_fmt=lld
+else
+	time_t_fmt=ld
+fi
+AC_MSG_RESULT([$time_t_fmt])
+AC_DEFINE_UNQUOTED([CM_TIME_FORMAT], ["$time_t_fmt"],
+	[Define printf format specifier for time_t])
+
+AM_CFLAGS="-Wall"
+if test $USE_MAINTAINER_MODE = yes; then
+	AM_CFLAGS="$AM_CFLAGS -g"
 fi
 
 AC_MSG_CHECKING([if gcc supports -Wno-pointer-sign])
@@ -187,33 +206,29 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([])],_gcc_psign=yes,_gcc_psign=no)
 AC_MSG_RESULT($_gcc_psign)
 CFLAGS=$_gcc_cflags_save;
 if test x"$_gcc_psign" = xyes ; then
-	CFLAGS="$CFLAGS -Wno-pointer-sign"
-fi
-
-CFLAGS="$CFLAGS -Wall -D_GNU_SOURCE"
-
-if test $USE_MAINTAINER_MODE = yes; then
-	CFLAGS="$CFLAGS -g -Wno-pointer-sign -DUSE_MAINTAINER_MODE"
+	AM_CFLAGS="$AM_CFLAGS -Wno-pointer-sign"
 fi
 
 pthread_name=
 case "$target" in
 *-darwin*)
-	CFLAGS="$CFLAGS -no-cpp-precomp -fno-common"
+	AM_CFLAGS="$AM_CFLAGS -no-cpp-precomp -fno-common"
 	;;
 *-*-mingw*)
-        # Note that we need to link to pthread in all cases. This
-        # is because some locking is used even when pthread support is
-        # disabled.
-        pthread_name=pthread
-	CFLAGS="$CFLAGS -mms-bitfields"
+	# Note that we need to link to pthread in all cases. This
+	# is because some locking is used even when pthread support is
+	# disabled.
+	pthread_name=pthread
+	AM_CFLAGS="$AM_CFLAGS -mms-bitfields"
 	LIBS="$LIBS -l${pthread_name} -lws2_32 -lregex"
 	;;
 *-*-solaris*)
-	CPPFLAGS="$CPPFLAGS -D_POSIX_PTHREAD_SEMANTICS"
-	CFLAGS="$CFLAGS -std=gnu99 -DSOLARIS"
+	AM_CFLAGS="$AM_CFLAGS -std=gnu99"
+	AC_DEFINE([SOLARIS], [], [Target is Solaris])
 	;;
 esac
+
+AC_SUBST(AM_CFLAGS)
 
 dnl Checks for iconv
 AM_ICONV
@@ -230,7 +245,7 @@ AC_CHECK_FUNCS(bind_textdomain_codeset)
 LIBS=$syl_save_LIBS
 
 dnl for gettext
-ALL_LINGUAS="ca cs da de el_GR en_GB es fi fr hu id_ID it ja nb nl pl pt_BR pt_PT ro ru sk sv tr zh_TW"
+ALL_LINGUAS="ca cs da de el_GR en_GB es fi fr hu id_ID it ja nb nl pl pt_BR ro ru sk sv tr zh_TW"
 GETTEXT_PACKAGE=claws-mail
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [Define text domain.])
@@ -251,8 +266,12 @@ AC_ARG_ENABLE(ipv6,
 		[enable_ipv6=$enableval], [enable_ipv6=yes])
 
 AC_ARG_ENABLE(gnutls,
-		[  --disable-gnutls                Do not build GnuTLS support for SSL/TLS],
+		[  --disable-gnutls                Do not build GnuTLS support for TLS],
 		    [enable_gnutls=$enableval], [enable_gnutls=yes])
+
+AC_ARG_ENABLE(oauth2,
+		[  --disable-oauth2                Do not build OAuth2 support],
+		    [enable_oauth2=$enableval], [enable_oauth2=yes])
 
 AC_ARG_ENABLE(enchant,
 		[  --disable-enchant               Do not build Enchant support for spell-checking],
@@ -379,12 +398,20 @@ else
 fi
 AC_SUBST(SM_LIBS)
 
+dnl Check for __VA_OPT__ macro
+AC_CACHE_CHECK([for __VA_OPT__],
+	[ac_cv_va_opt],
+	[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]], [[#define va_opt_printf(format, ...) fprintf(stderr, format __VA_OPT__(,) __VA_ARGS__)
+		va_opt_printf("success\n");]])],[ac_cv_va_opt=yes],[ac_cv_va_opt=no])]
+)
+if test "$ac_cv_va_opt" = yes; then
+	AC_DEFINE([HAVE_VA_OPT], [1], [Define if __VA_OPT__ macro works])
+fi
+
 dnl Check for d_type member in struct dirent
 AC_MSG_CHECKING([whether struct dirent has d_type member])
 AC_CACHE_VAL(ac_cv_dirent_d_type,[
-	AC_TRY_COMPILE([#include <dirent.h>],
-		       [struct dirent d; d.d_type = DT_REG;],
-		       ac_cv_dirent_d_type=yes, ac_cv_dirent_d_type=no)
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <dirent.h>]], [[struct dirent d; d.d_type = DT_REG;]])],[ac_cv_dirent_d_type=yes],[ac_cv_dirent_d_type=no])
 ])
 AC_MSG_RESULT($ac_cv_dirent_d_type)
 if test $ac_cv_dirent_d_type = yes; then
@@ -397,7 +424,7 @@ GNUPG_FUNC_MKDIR_TAKES_ONE_ARG
 
 dnl Checks for header files.
 AC_HEADER_DIRENT
-AC_HEADER_STDC
+
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h sys/file.h unistd.h paths.h \
 		 sys/param.h sys/utsname.h sys/select.h \
@@ -411,16 +438,6 @@ AC_TYPE_OFF_T
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_STRUCT_TM
-
-dnl AC_CHECK_TYPE(wint_t, unsigned int) does not work because wint_t
-dnl may be defined only in wchar.h (this happens with gcc-2.96).
-dnl So we need to use this extended macro.
-CLAWS_CHECK_TYPE(wint_t, unsigned int,
-[
-#if HAVE_WCHAR_H
-#include <wchar.h>
-#endif
-], Define to `unsigned int' if <stddef.h> or <wchar.h> doesn't define.)
 
 GNUPG_CHECK_TYPEDEF(u32, HAVE_U32_TYPEDEF, Used to test for a u32 typedef)
 AC_CHECK_SIZEOF(unsigned short, 2)
@@ -440,7 +457,7 @@ dnl ** common code **
 dnl *****************
 
 dnl check for glib
-PKG_CHECK_MODULES(GLIB, [glib-2.0 >= 2.28 gmodule-2.0 >= 2.28 gobject-2.0 >= 2.28 gthread-2.0 >= 2.28])
+PKG_CHECK_MODULES(GLIB, [glib-2.0 >= 2.50 gmodule-2.0 >= 2.50 gobject-2.0 >= 2.50 gthread-2.0 >= 2.50])
 
 GLIB_GENMARSHAL=`$PKG_CONFIG --variable=glib_genmarshal glib-2.0`
 AC_SUBST(GLIB_GENMARSHAL)
@@ -464,19 +481,17 @@ if test x"$enable_ipv6" = xyes; then
 	AC_MSG_CHECKING([for IPv6 support])
 	if test x"$platform_win32" = xyes; then
 		AC_CACHE_VAL(ac_cv_ipv6,[
-			AC_TRY_COMPILE([
+			AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 					#include <ws2tcpip.h>
-				], [struct in6_addr a;],
-				ac_cv_ipv6=yes, ac_cv_ipv6=no)
+				]], [[struct in6_addr a;]])],[ac_cv_ipv6=yes],[ac_cv_ipv6=no])
 		])
 	else
 		AC_CACHE_VAL(ac_cv_ipv6,[
-			AC_TRY_COMPILE([
+			AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 					#define INET6
 					#include <sys/types.h>
 					#include <netinet/in.h>
-				], [int x = IPPROTO_IPV6; struct in6_addr a;],
-				ac_cv_ipv6=yes, ac_cv_ipv6=no)
+				]], [[int x = IPPROTO_IPV6; struct in6_addr a;]])],[ac_cv_ipv6=yes],[ac_cv_ipv6=no])
 		])
 	fi
 	AC_MSG_RESULT($ac_cv_ipv6)
@@ -570,13 +585,28 @@ case $pwd_crypto in
 		;;
 esac
 
+AC_MSG_CHECKING([whether GnuTLS support is present for OAuth2])
+if test x"$enable_gnutls" = xyes; then
+	AC_MSG_RESULT([yes])
+	AC_MSG_CHECKING([whether to build OAuth2 support])
+	if test x"$enable_oauth2" = xyes; then
+		AC_MSG_RESULT([yes])
+		AC_DEFINE(USE_OAUTH2, 1, [Define if OAuth2 is to be activated.])
+	else
+		AC_MSG_RESULT([no])
+		enable_oauth2=no
+	fi
+else
+	AC_MSG_RESULT([no])
+	enable_oauth2=no
+fi
 
 dnl ************************
 dnl ** GTK user interface **
 dnl ************************
 
 dnl Checks for GTK
-PKG_CHECK_MODULES(GTK, gtk+-2.0 >= 2.24)
+PKG_CHECK_MODULES(GTK, gtk+-3.0 >= 3.20 cairo)
 
 AC_ARG_ENABLE(deprecated,
 		[  --disable-deprecated            Disable deprecated GTK functions],
@@ -691,13 +721,11 @@ if test x$os_win32 = xno; then
   t_oldLibs="$LIBS"
   LIBS="$LIBS"
   ac_cv_var__res_options=no
-  AC_TRY_LINK([#include <sys/types.h>
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
  	     #include <sys/socket.h>
 	     #include <netinet/in.h>
  	     #include <arpa/nameser.h>
-	     #include <resolv.h>],
- 	  	[_res.options = RES_INIT;],
- 	 	ac_cv_var__res_options=yes);
+	     #include <resolv.h>]], [[_res.options = RES_INIT;]])],[ac_cv_var__res_options=yes],[]);
   if test "$ac_cv_var__res_options" != "yes"; then
 	LIBRESOLV="-lresolv"
   fi
@@ -932,7 +960,7 @@ if test x"$enable_libetpan" = xyes; then
         # before 1.9.4, libetpan uses its own libetpan-config script
         AC_PATH_PROG(libetpanconfig, [libetpan-config])
         if test "x$libetpanconfig" != "x"; then
-            LIBETPAN_CPPFLAGS="`$libetpanconfig --cflags`"
+            LIBETPAN_CFLAGS="`$libetpanconfig --cflags`"
             LIBETPAN_LIBS="`$libetpanconfig --libs`"
             # support libetpan version like x.x and x.x.x
             libetpan_versiontype=`$libetpanconfig --version | tr -dc . | wc -c`
@@ -945,12 +973,11 @@ if test x"$enable_libetpan" = xyes; then
         fi
     ])
     if test "x$libetpan_config" = "xyes"; then
-        CPPFLAGS="$CPPFLAGS $LIBETPAN_FLAGS"
         AC_CHECK_HEADER(libetpan/libetpan.h, [libetpan_result=yes])
         if test "x$libetpan_result" = "xyes"; then
             AC_MSG_CHECKING([whether libetpan-config hints compiles and links fine])
             LIBS="$LIBS $LIBETPAN_LIBS"
-            AC_TRY_LINK([#include <libetpan/dbstorage.h>], [db_mailstorage_init(NULL, NULL);], [libetpan_result=yes], [libetpan_result=no])
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libetpan/dbstorage.h>]], [[db_mailstorage_init(NULL, NULL);]])],[libetpan_result=yes],[libetpan_result=no])
             AC_MSG_RESULT([$libetpan_result])
         fi
     fi
@@ -962,7 +989,7 @@ if test x"$enable_libetpan" = xyes; then
                 AC_MSG_ERROR([libetpan 0.57 not found])
             fi
         fi
-        AC_SUBST(LIBETPAN_FLAGS)
+        AC_SUBST(LIBETPAN_CFLAGS)
         AC_SUBST(LIBETPAN_LIBS)
         AC_DEFINE(HAVE_LIBETPAN, 1, Define if you want IMAP and/or NNTP support.)
     else
@@ -997,13 +1024,15 @@ fi
 AC_MSG_CHECKING([whether to use valgrind])
 if test x$enable_valgrind = xyes; then
 	AC_MSG_RESULT(yes)
-	PKG_CHECK_MODULES(VALGRIND, valgrind >= 2.4.0,
-			  enable_valgrind=yes, enable_valgrind=no)
-	if test x"$enable_valgrind" = xyes; then
+	PKG_CHECK_MODULES([VALGRIND], [valgrind >= 2.4.0],
+	[
 		AC_DEFINE(HAVE_VALGRIND, 1, Define if you want valgrind support)
-	else
-		AC_MSG_RESULT(not found)
-	fi
+		enable_valgrind=yes
+	],
+	[
+		AC_MSG_NOTICE([valgrind support deactivated as valgrind >= 2.4.0 was not found])
+		enable_valgrind=no
+	])
 else
 	AC_MSG_RESULT(no)
 fi
@@ -1078,6 +1107,10 @@ AC_ARG_ENABLE(fetchinfo-plugin,
 AC_ARG_ENABLE(gdata-plugin,
 		[  --disable-gdata-plugin          Do not build gdata plugin],
 		[enable_gdata_plugin=$enableval], [enable_gdata_plugin=auto])
+
+AC_ARG_ENABLE(keyword_warner-plugin,
+		[  --disable-keyword_warner-plugin   Do not build keyword_warner plugin],
+		[enable_keyword_warner_plugin=$enableval], [enable_keyword_warner_plugin=auto])
 
 AC_ARG_ENABLE(libravatar-plugin,
 		[  --disable-libravatar-plugin     Do not build libravatar  plugin],
@@ -1170,7 +1203,7 @@ dnl Gdata:		libgdata
 dnl Litehtml		a C++ compiler, >=glib-2.36, cairo, fontconfig, gumbo, curl
 dnl Libravatar:		libcurl
 dnl Notification:	optionally libnotify  unity/messaging-menu
-dnl 				   libcanberra_gtk hotkey
+dnl 				   libcanberra_gtk3 hotkey
 dnl Pdf-Viewer:		libpoppler
 dnl Perl:		sed perl
 dnl PGP/Core:		libgpgme
@@ -1205,7 +1238,7 @@ AC_SUBST(EXPAT_CFLAGS)
 AC_SUBST(EXPAT_LIBS)
 
 dnl webkit *********************************************************************
-PKG_CHECK_MODULES(WEBKIT, webkit-1.0 >= 1.10.0, HAVE_WEBKIT=yes, HAVE_WEBKIT=no)
+PKG_CHECK_MODULES(WEBKIT, webkit2gtk-4.0 >= 2.18.0, HAVE_WEBKIT=yes, HAVE_WEBKIT=no)
 AC_SUBST(WEBKIT_LIBS)
 AC_SUBST(WEBKIT_CFLAGS)
 
@@ -1292,30 +1325,44 @@ if test x"$HAVE_PERL" = xyes; then
 	fi
 fi
 if test x"$HAVE_PERL" = xyes; then
-	AC_MSG_CHECKING(for Perl compile flags)
-	PERL_CFLAGS=`perl -MExtUtils::Embed -e ccopts`
-	PERL_CFLAGS=`echo $PERL_CFLAGS | sed 's/-D_FILE_OFFSET_BITS=[[0-9]]*//'`
-	PERL_LDFLAGS=`perl -MExtUtils::Embed -e ldopts |sed 's/-lgdbm\>//'`
-	PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-ldb\>//'`
-	PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-lndbm\>//'`
-	PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-lc\>//'`
-	AC_MSG_RESULT(ok)
-	AC_MSG_NOTICE([Adding perl LIBS ${PERL_CFLAGS}])
-	
+	AC_MSG_CHECKING(for perl module ExtUtils::Embed)
+	PERL_MOD_EXT_UTILS_EMBED=no
+	if perl -MExtUtils::Embed; then
+		AC_MSG_RESULT(ok)
+		PERL_MOD_EXT_UTILS_EMBED=yes
+	else
+		AC_MSG_RESULT(no)
+	fi
+
+	if test x"$PERL_MOD_EXT_UTILS_EMBED" = xyes; then
+		AC_MSG_CHECKING(for Perl compile flags)
+		PERL_CFLAGS=`perl -MExtUtils::Embed -e ccopts`
+		PERL_CFLAGS=`echo $PERL_CFLAGS | sed 's/-D_FILE_OFFSET_BITS=[[0-9]]*//'`
+		PERL_LDFLAGS=`perl -MExtUtils::Embed -e ldopts |sed 's/-lgdbm\>//'`
+		PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-ldb\>//'`
+		PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-lndbm\>//'`
+		PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-lc\>//'`
+		AC_MSG_RESULT(ok)
+		AC_MSG_NOTICE([Adding perl LIBS ${PERL_CFLAGS}])
+	fi
+
 	if test x"$HAVE_PERL" = xyes; then
 		AC_CHECK_LIB(perl,perl_alloc,[AC_DEFINE(HAVE_LIBPERL, 1, Check for libperl.)], 
 			 		     [ HAVE_LIBPERL=no ])
 	fi
+
 	if test x"$HAVE_LIBPERL" = xno; then
-		LIBPERL_PREFIX=`perl -MExtUtils::Embed -e perl_inc`
-		LIBPERL_PREFIX=`echo $LIBPERL_PREFIX |sed 's/-I//'`
-		AC_MSG_CHECKING([for libperl.so])
-		if test -f "$LIBPERL_PREFIX/libperl.so"; then
-			AC_MSG_RESULT(yes)
-			HAVE_LIBPERL=yes
-		else
-			AC_MSG_RESULT(no)
-		fi	
+		if test x"$PERL_MOD_EXT_UTILS_EMBED" = xyes; then
+			LIBPERL_PREFIX=`perl -MExtUtils::Embed -e perl_inc`
+			LIBPERL_PREFIX=`echo $LIBPERL_PREFIX |sed 's/-I//'`
+			AC_MSG_CHECKING([for libperl.so])
+			if test -f "$LIBPERL_PREFIX/libperl.so"; then
+				AC_MSG_RESULT(yes)
+				HAVE_LIBPERL=yes
+			else
+				AC_MSG_RESULT(no)
+			fi
+		fi
 	fi
 	PERL="perl"
 	AC_SUBST(PERL)
@@ -1324,29 +1371,35 @@ if test x"$HAVE_PERL" = xyes; then
 fi
 
 dnl Gpgme **********************************************************************
-AM_PATH_GPGME(1.0.0, HAVE_GPGME=yes, HAVE_GPGME=no)
-if test x"$HAVE_GPGME" = xyes; then
+dnl First try to find gpgme with gpgme-config.  Use pkgconfig if not found
+AM_PATH_GPGME(1.1.1, HAVE_GPGME_CONFIG=yes, HAVE_GPGME_CONFIG=no)
+if test x"$HAVE_GPGME_CONFIG" = xno; then
+	PKG_CHECK_MODULES(GPGME, [gpgme >= 1.1.1], HAVE_GPGME_PKGCONFIG=yes, HAVE_GPGME_PKGCONFIG=no)
+	if test x"$HAVE_GPGME_PKGCONFIG" = xyes; then
+		PKG_CHECK_MODULES(LIBGPG_ERROR, [gpg-error])
+	fi
+fi
+
+if test x"$HAVE_GPGME_CONFIG" = xyes -o x"$HAVE_GPGME_PKGCONFIG" = xyes; then
 	AC_DEFINE(USE_GPGME, 1, Define if you use GPGME to support OpenPGP.)
-	AM_PATH_GPGME(1.1.1, AC_DEFINE(HAVE_GPGME_PKA_TRUST, 1, [Define if GPGME supports PKA.]))
+	HAVE_GPGME=yes
+else
+	HAVE_GPGME=no
 fi
 
 dnl Python *********************************************************************
-missing_python=""
-PKG_CHECK_MODULES(PYTHON, python2, HAVE_PYTHON=yes, HAVE_PYTHON=no)
-if test x"$HAVE_PYTHON" = xno; then
-	missing_python="python2"
-fi
-if test x"$HAVE_PYTHON" = xyes; then
-	PKG_CHECK_MODULES(PYGTK, pygtk-2.0 >= 2.10.3, [AC_DEFINE(ENABLE_PYTHON, [1], [Enable Python support])], HAVE_PYTHON=no)
-	if test x"$HAVE_PYTHON" = xno; then
-		missing_python="pygtk-2.0 >= 2.10.3"
-	fi
-fi
+PKG_CHECK_MODULES(PYTHON, python3, HAVE_PYTHON=yes, HAVE_PYTHON=no)
+PKG_CHECK_MODULES(PYTHONEMBED, python3-embed, HAVE_PYTHONEMBED=yes, HAVE_PYTHONEMBED=no)
+PKG_CHECK_MODULES(PYGOBJECT, pygobject-3.0, HAVE_PYGOBJ=yes, HAVE_PYGOBJ=no)
+
 AC_SUBST(PYTHON_SHARED_LIB)
 AC_SUBST(PYTHON_CFLAGS)
 AC_SUBST(PYTHON_LIBS)
-AC_SUBST(PYGTK_CFLAGS)
-AC_SUBST(PYGTK_LIBS)
+AC_SUBST(PYTHONEMBED_SHARED_LIB)
+AC_SUBST(PYTHONEMBED_CFLAGS)
+AC_SUBST(PYTHONEMBED_LIBS)
+AC_SUBST(PYGOBJECT_CFLAGS)
+AC_SUBST(PYGOBJECT_LIBS)
 
 dnl libnotify ******************************************************************
 PKG_CHECK_MODULES(libnotify, libnotify >= 0.4.3, HAVE_LIBNOTIFY=yes, HAVE_LIBNOTIFY=no)
@@ -1356,13 +1409,13 @@ fi
 AC_SUBST(libnotify_CFLAGS)
 AC_SUBST(libnotify_LIBS)
 
-dnl libcanberra-gtk ************************************************************
-PKG_CHECK_MODULES(libcanberra_gtk, libcanberra-gtk >= 0.6, HAVE_LIBCANBERRA_GTK=yes, HAVE_LIBCANBERRA_GTK=no)
+dnl libcanberra-gtk3 ************************************************************
+PKG_CHECK_MODULES(libcanberra_gtk3, libcanberra-gtk3, HAVE_LIBCANBERRA_GTK=yes, HAVE_LIBCANBERRA_GTK=no)
 if test x"$HAVE_LIBCANBERRA_GTK" = xyes; then
-	AC_DEFINE(HAVE_LIBCANBERRA_GTK, 1, [Define if libcanberra-gtk support is enabled])
+	AC_DEFINE(HAVE_LIBCANBERRA_GTK, 1, [Define if libcanberra-gtk3 support is enabled])
 fi
-AC_SUBST(libcanberra_gtk_CFLAGS)
-AC_SUBST(libcanberra_gtk_LIBS)
+AC_SUBST(libcanberra_gtk3_CFLAGS)
+AC_SUBST(libcanberra_gtk3_LIBS)
 
 dnl unity/messaging-menu *******************************************************
 PKG_CHECK_MODULES(unity, unity messaging-menu, HAVE_UNITY=yes, HAVE_UNITY=no)
@@ -1402,18 +1455,12 @@ if test $have_ytnef -eq 1; then
 	else
 		ytnef_include="#include <libytnef/ytnef.h>"
 	fi
-	AC_TRY_COMPILE([#include <stdio.h>
-									${ytnef_include}],
-									[SwapDDWord(0, 0);],
-									[have_ytnef=1],
-									[have_ytnef=0])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
+									${ytnef_include}]], [[SwapDDWord(0, 0);]])],[have_ytnef=1],[have_ytnef=0])
 	if test $have_ytnef -eq 0; then
-		AC_TRY_COMPILE([#include <stdio.h>
-										${ytnef_include}],
-										[SwapDDWord(0);],
-										[have_ytnef=1;
-										 YTNEF_CFLAGS="${YTNEF_CFLAGS} -DYTNEF_OLD_SWAPDDWORD"],
-										[have_ytnef=0])
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
+										${ytnef_include}]], [[SwapDDWord(0);]])],[have_ytnef=1;
+										 YTNEF_CFLAGS="${YTNEF_CFLAGS} -DYTNEF_OLD_SWAPDDWORD"],[have_ytnef=0])
 	fi
 	if test $have_ytnef -eq 1; then
 		YTNEF_LIBS="-lytnef"
@@ -1540,7 +1587,7 @@ if test x"$enable_fancy_plugin" != xno; then
 	dependencies_missing=""
 
 	if test x"$HAVE_WEBKIT" = xno; then
-		dependencies_missing="libwebkit-1.0 $dependencies_missing"
+		dependencies_missing="libwebkit2gtk-4.0 $dependencies_missing"
 	fi
 	if test x"$HAVE_CURL" = xno; then
 		dependencies_missing="libcurl $dependencies_missing"
@@ -1594,6 +1641,15 @@ if test x"$enable_gdata_plugin" != xno; then
 	fi
 else
 	DISABLED_PLUGINS="$DISABLED_PLUGINS gdata"
+	AC_MSG_RESULT(no)
+fi
+
+AC_MSG_CHECKING([whether to build keyword_warner plugin])
+if test x"$enable_keyword_warner_plugin" != xno; then
+	PLUGINS="$PLUGINS keyword_warner"
+	AC_MSG_RESULT(yes)
+else
+	DISABLED_PLUGINS="$DISABLED_PLUGINS keyword_warner"
 	AC_MSG_RESULT(no)
 fi
 
@@ -1721,9 +1777,9 @@ if test x"$enable_notification_plugin" != xno; then
 		notification_missing_dependencies="$notification_missing_dependencies libnotify"
 	fi
 	if test x"$HAVE_LIBCANBERRA_GTK" = xyes; then
-		notification_features="$notification_features libcanberra-gtk"
+		notification_features="$notification_features libcanberra-gtk3"
 	else
-		notification_missing_dependencies="$notification_missing_dependencies libcanberra-gtk"
+		notification_missing_dependencies="$notification_missing_dependencies libcanberra-gtk3"
 	fi
 	notification_features="$notification_features popup trayicon"
 else
@@ -1786,7 +1842,10 @@ if test x"$enable_python_plugin" != xno; then
 	dependencies_missing=""
 
 	if test x"$HAVE_PYTHON" = xno; then
-		dependencies_missing="$missing_python $dependencies_missing"
+		dependencies_missing="python3 $dependencies_missing"
+	fi
+	if test x"$HAVE_PYGOBJ" = xno; then
+		dependencies_missing="pygobject-3.0 $dependencies_missing"
 	fi
 
 	if test x"$dependencies_missing" = x; then
@@ -2074,6 +2133,7 @@ AM_CONDITIONAL(BUILD_DILLO_PLUGIN,		test x"$enable_dillo_plugin" != xno)
 AM_CONDITIONAL(BUILD_FANCY_PLUGIN,		test x"$enable_fancy_plugin" != xno)
 AM_CONDITIONAL(BUILD_FETCHINFO_PLUGIN,		test x"$enable_fetchinfo_plugin" != xno)
 AM_CONDITIONAL(BUILD_GDATA_PLUGIN,		test x"$enable_gdata_plugin" != xno)
+AM_CONDITIONAL(BUILD_KEYWORD_WARNER_PLUGIN,	test x"$enable_keyword_warner_plugin" != xno)
 AM_CONDITIONAL(BUILD_LIBRAVATAR_PLUGIN,		test x"$enable_libravatar_plugin" != xno)
 AM_CONDITIONAL(BUILD_LITEHTML_VIEWER_PLUGIN,	test x"$enable_litehtml_viewer_plugin" != xno)
 AM_CONDITIONAL(BUILD_MAILMBOX_PLUGIN,		test x"$enable_mailmbox_plugin" != xno)
@@ -2099,12 +2159,13 @@ dnl ****************************
 dnl ** Final configure output **
 dnl ****************************
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 Makefile
 m4/Makefile
 po/Makefile.in
 src/common/version.h
 src/Makefile
+src/w32-resource.rc
 src/common/Makefile
 src/common/passcrypt.h
 src/common/tests/Makefile
@@ -2113,70 +2174,74 @@ src/etpan/Makefile
 src/plugins/Makefile
 src/plugins/acpi_notifier/Makefile
 src/plugins/address_keeper/Makefile
+src/plugins/address_keeper/version.rc
 src/plugins/archive/Makefile
 src/plugins/att_remover/Makefile
+src/plugins/att_remover/version.rc
 src/plugins/attachwarner/Makefile
+src/plugins/attachwarner/version.rc
 src/plugins/bogofilter/Makefile
 src/plugins/bsfilter/Makefile
+src/plugins/bsfilter/version.rc
 src/plugins/clamd/Makefile
 src/plugins/clamd/libclamd/Makefile
 src/plugins/demo/Makefile
 src/plugins/dillo/Makefile
 src/plugins/fancy/Makefile
+src/plugins/fancy/version.rc
 src/plugins/fetchinfo/Makefile
+src/plugins/fetchinfo/version.rc
 src/plugins/gdata/Makefile
+src/plugins/keyword_warner/Makefile
+src/plugins/keyword_warner/version.rc
 src/plugins/litehtml_viewer/Makefile
+src/plugins/litehtml_viewer/version.rc
 src/plugins/litehtml_viewer/litehtml/Makefile
 src/plugins/libravatar/Makefile
+src/plugins/libravatar/version.rc
 src/plugins/mailmbox/Makefile
+src/plugins/mailmbox/version.rc
 src/plugins/managesieve/Makefile
+src/plugins/managesieve/version.rc
 src/plugins/newmail/Makefile
 src/plugins/notification/Makefile
+src/plugins/notification/version.rc
 src/plugins/notification/gtkhotkey/Makefile
 src/plugins/pdf_viewer/Makefile
+src/plugins/pdf_viewer/version.rc
 src/plugins/perl/Makefile
 src/plugins/perl/tools/Makefile
 src/plugins/python/Makefile
 src/plugins/python/examples/Makefile
 src/plugins/pgpcore/Makefile
-src/plugins/pgpcore/tests/Makefile
+src/plugins/pgpcore/version.rc
 src/plugins/pgpmime/Makefile
+src/plugins/pgpmime/version.rc
 src/plugins/pgpinline/Makefile
+src/plugins/pgpinline/version.rc
 src/plugins/rssyl/Makefile
+src/plugins/rssyl/version.rc
 src/plugins/rssyl/tests/Makefile
 src/plugins/rssyl/libfeed/Makefile
 src/plugins/rssyl/libfeed/tests/Makefile
 src/plugins/smime/Makefile
+src/plugins/smime/version.rc
 src/plugins/spamassassin/Makefile
 src/plugins/spam_report/Makefile
+src/plugins/spam_report/version.rc
 src/plugins/tnef_parse/Makefile
+src/plugins/tnef_parse/version.rc
 src/plugins/vcalendar/Makefile
+src/plugins/vcalendar/version.rc
 src/tests/Makefile
 doc/Makefile
 doc/man/Makefile
 tools/Makefile
 config/Makefile
 manual/Makefile
-manual/dtd/Makefile
-manual/dist/Makefile
-manual/dist/pdf/Makefile
-manual/dist/ps/Makefile
-manual/dist/html/Makefile
-manual/dist/txt/Makefile
-manual/fr/Makefile
-manual/fr/dist/Makefile
-manual/fr/dist/pdf/Makefile
-manual/fr/dist/ps/Makefile
-manual/fr/dist/html/Makefile
-manual/fr/dist/txt/Makefile
-manual/es/Makefile
-manual/es/dist/Makefile
-manual/es/dist/pdf/Makefile
-manual/es/dist/ps/Makefile
-manual/es/dist/html/Makefile
-manual/es/dist/txt/Makefile
 claws-mail.pc
 ])
+AC_OUTPUT
 
 dnl Output the configuration summary
 echo ""
@@ -2190,6 +2255,7 @@ else
 	echo "LDAP               : $enable_ldap"
 fi
 echo "gnuTLS             : $enable_gnutls"
+echo "OAuth2             : $enable_oauth2"
 echo "iconv              : $am_cv_func_iconv"
 echo "compface           : $enable_compface"
 echo "IPv6               : $enable_ipv6"

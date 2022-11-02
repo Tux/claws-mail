@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2016 Hiroyuki Yamamoto and the Claws Mail team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,7 +61,9 @@
 #include "hooks.h"
 #include "logwindow.h"
 #include "passwordstore.h"
+#ifdef USE_OAUTH2
 #include "oauth2.h"
+#endif
 
 extern SessionStats session_stats;
 
@@ -417,7 +419,7 @@ void inc_all_account_mail(MainWindow *mainwin, gboolean autocheck,
 			  gboolean check_at_startup, gboolean notify)
 {
 	GList *list, *list2 = NULL;
-	gboolean condition;
+	gboolean condition = FALSE;
 	gboolean hide_dialog = FALSE;
 
 	debug_print("INC: inc_all_account_mail(), autocheck: %s\n",
@@ -460,8 +462,8 @@ static void inc_progress_dialog_size_allocate_cb(GtkWidget *widget,
 {
 	cm_return_if_fail(allocation != NULL);
 
-	prefs_common.receivewin_width = allocation->width;
-	prefs_common.receivewin_height = allocation->height;
+	gtk_window_get_size(GTK_WINDOW(widget),
+		&prefs_common.receivewin_width, &prefs_common.receivewin_height);
 }
 
 static IncProgressDialog *inc_progress_dialog_create(gboolean autocheck)
@@ -633,11 +635,12 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 			manage_window_focus_in
 				(inc_dialog->dialog->window,
 				 NULL, NULL);
-
+#ifdef USE_OAUTH2
 		if(pop3_session->ac_prefs->use_pop_auth && 
 		   pop3_session->ac_prefs->pop_auth_type == POPAUTH_OAUTH2)
 		     oauth2_check_passwds (pop3_session->ac_prefs);
-		
+#endif
+
 		if (password_get(pop3_session->user,
 					pop3_session->ac_prefs->recv_server,
 					"pop3", pop3_get_port(pop3_session),
@@ -681,9 +684,9 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 
 		if (pop3_session->pass == NULL) {
 			SET_PIXMAP_AND_TEXT(okpix, _("Cancelled"));
-			inc_session_destroy(session);
 			inc_dialog->queue_list =
 				g_list_remove(inc_dialog->queue_list, session);
+			inc_session_destroy(session);
 			continue;
 		}
 
@@ -838,7 +841,9 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 		gtk_window_set_title(GTK_WINDOW(inc_dialog->dialog->window),
 				     fin_msg);
 		gtk_button_set_label(GTK_BUTTON(inc_dialog->dialog->cancel_btn),
-				     GTK_STOCK_CLOSE);
+				     _("_Close"));
+		gtk_button_set_image(GTK_BUTTON(inc_dialog->dialog->cancel_btn),
+			gtk_image_new_from_icon_name("window-close", GTK_ICON_SIZE_BUTTON));
 	}
 
 	g_free(fin_msg);
@@ -880,13 +885,13 @@ static IncState inc_pop3_session_do(IncSession *session)
 	if (ac->ssl_pop != SSL_NONE) {
 		if (alertpanel_full(_("Insecure connection"),
 			_("This connection is configured to be secured "
-			  "using SSL/TLS, but SSL/TLS is not available "
+			  "using TLS, but TLS is not available "
 			  "in this build of Claws Mail. \n\n"
 			  "Do you want to continue connecting to this "
 			  "server? The communication would not be "
 			  "secure."),
-			  GTK_STOCK_CANCEL, _("Con_tinue connecting"), NULL,
-				ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE)
+			NULL, _("_Cancel"), NULL, _("Con_tinue connecting"), NULL, NULL,
+			ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE)
 			return INC_CANCEL;
 	}
 #endif
@@ -1486,9 +1491,12 @@ static void inc_notify_cmd(gint new_msgs, gboolean notify)
 
 	ret_str = g_locale_from_utf8(buf, strlen(buf), &by_read, &by_written,
 				     NULL);
-	if (ret_str && by_written) {
-		g_free(buf);
-		buf = ret_str;
+	if (ret_str) {
+		if (by_written) {
+			g_free(buf);
+			buf = ret_str;
+		} else
+			g_free(ret_str);
 	}
 	debug_print("executing new mail notification command: %s\n", buf);
 	execute_command_line(buf, TRUE, NULL);
@@ -1665,8 +1673,8 @@ gboolean inc_offline_should_override(gboolean force_ask, const gchar *msg)
 
 		answer = alertpanel(_("Offline warning"), 
 			       tmp,
-			       GTK_STOCK_NO, GTK_STOCK_YES,
-				!force_ask? _("On_ly once"):NULL, ALERTFOCUS_SECOND);
+			       NULL, _("_No"), NULL, _("_Yes"),
+			       NULL, !force_ask? _("On_ly once"):NULL, ALERTFOCUS_SECOND);
 		g_free(tmp);
 		if (answer == G_ALERTALTERNATE) {
 			inc_offline_overridden_yes = time(NULL);

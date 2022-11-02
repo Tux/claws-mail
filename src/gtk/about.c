@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2021 the Claws Mail team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 the Claws Mail team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -93,12 +93,13 @@ static GtkWidget *about_create_child_page_info(void)
 	GtkWidget *text;
 	GtkTextBuffer *buffer;
 	GtkTextIter iter;
-	GdkColor uri_color;
+	GdkRGBA uri_color;
 	gchar buf[1024];
 	GtkTextTag *tag;
 #if HAVE_SYS_UTSNAME_H
 	struct utsname utsbuf;
 #endif
+	gchar *format;
 
 	scrolledwin = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwin),
@@ -109,8 +110,9 @@ static GtkWidget *about_create_child_page_info(void)
 	text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD);
+	/* disable margins until GTK bug 793407 is fixed
 	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text), 6);
-	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6); */
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), text);
 	gtk_widget_add_events(text, GDK_LEAVE_NOTIFY_MASK);
@@ -119,14 +121,13 @@ static GtkWidget *about_create_child_page_info(void)
 	gtk_text_buffer_get_iter_at_offset(buffer, &iter, 0);
 
 	/* textview link style (based upon main prefs) */
-	gtkut_convert_int_to_gdk_color(prefs_common.color[COL_URI],
-				(GdkColor*)&uri_color);
+	uri_color = prefs_common.color[COL_URI];
 	tag = gtk_text_buffer_create_tag(buffer, "link",
-				"foreground-gdk", &uri_color,
+				"foreground-rgba", &uri_color,
 				"wrap-mode", GTK_WRAP_NONE,
 				NULL);
 	gtk_text_buffer_create_tag(buffer, "link-hover",
-				"foreground-gdk", &uri_color,
+				"foreground-rgba", &uri_color,
 				"underline", PANGO_UNDERLINE_SINGLE,
 				NULL);
 
@@ -160,7 +161,7 @@ static GtkWidget *about_create_child_page_info(void)
 				NULL);
 #ifdef GENERIC_UMPC
 	ADD_TEXT("\n\n");
-	ADD_TEXT(_("Copyright (C) 1999-2021\nThe Claws Mail Team\n"
+	ADD_TEXT(_("Copyright (C) 1999-2022\nThe Claws Mail Team\n"
 				"and Hiroyuki Yamamoto"));
 #endif
 	ADD_TEXT("\n\n");
@@ -169,32 +170,36 @@ static GtkWidget *about_create_child_page_info(void)
 
 #if HAVE_SYS_UTSNAME_H
 	uname(&utsbuf);
-	g_snprintf(buf, sizeof(buf),g_strconcat(
-		       "GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+	format = g_strconcat(
+		       "GTK %d.%d.%d / GLib %d.%d.%d\n",
 		     _("Locale: %s (charset: %s)\n"
-		     "Operating System: %s %s (%s)"), NULL),
+		     "Operating System: %s %s (%s)"), NULL);
+	g_snprintf(buf, sizeof(buf), format,
 		   gtk_major_version, gtk_minor_version, gtk_micro_version,
 		   glib_major_version, glib_minor_version, glib_micro_version,
 		   conv_get_current_locale(), conv_get_locale_charset_str(),
 		   utsbuf.sysname, utsbuf.release, utsbuf.machine);
 #elif defined(G_OS_WIN32)
-	g_snprintf(buf, sizeof(buf),g_strconcat(
-		       "GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+	format = g_strconcat(
+		       "GTK %d.%d.%d / GLib %d.%d.%d\n",
 		     _("Locale: %s (charset: %s)\n"
-		     "Operating System: %s"), NULL),
+		     "Operating System: %s"), NULL);
+	g_snprintf(buf, sizeof(buf), format,
 		   gtk_major_version, gtk_minor_version, gtk_micro_version,
 		   glib_major_version, glib_minor_version, glib_micro_version,
 		   conv_get_current_locale(), conv_get_locale_charset_str(),
 		   "Win32");
 #else
-	g_snprintf(buf, sizeof(buf),g_strconcat(
-		       "GTK+ %d.%d.%d / GLib %d.%d.%d\n",
+	format = g_strconcat(
+		       "GTK %d.%d.%d / GLib %d.%d.%d\n",
 		     _("Locale: %s (charset: %s)\n"
-		     "Operating System: unknown"), NULL),
+		     "Operating System: unknown"), NULL);
+	g_snprintf(buf, sizeof(buf), format,
 		   gtk_major_version, gtk_minor_version, gtk_micro_version,
 		   glib_major_version, glib_minor_version, glib_micro_version,
 		   conv_get_current_locale(), conv_get_locale_charset_str());
 #endif
+	g_free(format);
 
 	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, buf, -1,
 						 "indented-list-item", NULL);
@@ -227,8 +232,9 @@ static GtkWidget *about_create_child_page_authors(void)
 	text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD);
+	/* disable margins until GTK bug 793407 is fixed
 	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text), 6);
-	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6); */
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), text);
 	gtk_widget_add_events(text, GDK_LEAVE_NOTIFY_MASK);
@@ -397,8 +403,9 @@ static GtkWidget *about_create_child_page_features(void)
 	text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD);
+	/* disable margins until GTK bug 793407 is fixed
 	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text), 6);
-	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6); */
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), text);
 	gtk_widget_add_events(text, GDK_LEAVE_NOTIFY_MASK);
@@ -445,6 +452,16 @@ static GtkWidget *about_create_child_page_features(void)
 	gtk_text_buffer_insert(buffer, &iter, 
 		(gchar *)C_("GnuTLS", "adds support for encrypted connections to servers\n"), -1);
 
+#if HAVE_ICONV
+	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
+#else
+	gtk_text_buffer_insert_pixbuf(buffer, &iter, inactive_pixbuf);
+#endif
+	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, (" iconv "), -1,
+						 "bold", NULL);
+	gtk_text_buffer_insert(buffer, &iter,
+		(gchar *)C_("iconv", "allows converting to and from different character sets\n"), -1);
+
 #if INET6
 	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
 #else
@@ -453,18 +470,7 @@ static GtkWidget *about_create_child_page_features(void)
 	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, (" IPv6 "), -1,
 						 "bold", NULL);
 	gtk_text_buffer_insert(buffer, &iter, 
-		(gchar *)C_("IPv6", "adds support for IPv6 addresses, the new Internet "
-			    "addressing protocol\n"), -1);
-
-#if HAVE_ICONV
-	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
-#else
-	gtk_text_buffer_insert_pixbuf(buffer, &iter, inactive_pixbuf);
-#endif
-	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, (" iconv "), -1,
-						 "bold", NULL);
-	gtk_text_buffer_insert(buffer, &iter, 
-		(gchar *)C_("iconv", "allows converting to and from different character sets\n"), -1);
+		(gchar *)C_("IPv6", "adds support for IPv6 addresses\n"), -1);
 
 #if USE_JPILOT
 	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
@@ -496,6 +502,16 @@ static GtkWidget *about_create_child_page_features(void)
 	gtk_text_buffer_insert(buffer, &iter, 
 		(gchar *)C_("libetpan", "adds support for IMAP and NNTP servers\n"), -1);
 
+#if HAVE_SVG
+	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
+#else
+	gtk_text_buffer_insert_pixbuf(buffer, &iter, inactive_pixbuf);
+#endif
+	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, (" librSVG "), -1,
+						 "bold", NULL);
+	gtk_text_buffer_insert(buffer, &iter,
+		(gchar *)C_("librSVG", "adds support for SVG themes\n"), -1);
+
 #if HAVE_LIBSM
 	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
 #else
@@ -516,15 +532,15 @@ static GtkWidget *about_create_child_page_features(void)
 	gtk_text_buffer_insert(buffer, &iter,
 		(gchar *)C_("NetworkManager", "adds support for detection of network connection changes\n"), -1);
 
-#if HAVE_SVG
+#if USE_OAUTH2
 	gtk_text_buffer_insert_pixbuf(buffer, &iter, active_pixbuf);
 #else
 	gtk_text_buffer_insert_pixbuf(buffer, &iter, inactive_pixbuf);
 #endif
-	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, (" librSVG "), -1,
+	gtk_text_buffer_insert_with_tags_by_name(buffer, &iter, (" OAuth2 "), -1,
 						 "bold", NULL);
 	gtk_text_buffer_insert(buffer, &iter,
-		(gchar *)C_("librSVG", "adds support for SVG themes\n"), -1);
+		(gchar *)C_("OAuth2", "adds support for OAuth2 authentication\n"), -1);
 
 	return scrolledwin;
 }
@@ -535,7 +551,7 @@ static GtkWidget *about_create_child_page_license(void)
 	GtkWidget *text;
 	GtkTextBuffer *buffer;
 	GtkTextIter iter;
-	GdkColor uri_color;
+	GdkRGBA uri_color;
 	GtkTextTag *tag;
 
 	scrolledwin = gtk_scrolled_window_new(NULL, NULL);
@@ -547,8 +563,9 @@ static GtkWidget *about_create_child_page_license(void)
 	text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD);
+	/* disable margins until GTK bug 793407 is fixed
 	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text), 6);
-	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6); */
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), text);
 
@@ -570,14 +587,13 @@ static GtkWidget *about_create_child_page_license(void)
 	ADD_TEXT("\n\n");
 
 	/* textview link style (based upon main prefs) */
-	gtkut_convert_int_to_gdk_color(prefs_common.color[COL_URI],
-			(GdkColor*)&uri_color);
+	uri_color = prefs_common.color[COL_URI];
 
 	tag = gtk_text_buffer_create_tag(buffer, "link",
-		"foreground-gdk", &uri_color,
+		"foreground-rgba", &uri_color,
 		NULL);
 	gtk_text_buffer_create_tag(buffer, "link-hover",
-		"foreground-gdk", &uri_color,
+		"foreground-rgba", &uri_color,
 		"underline", PANGO_UNDERLINE_SINGLE,
 		NULL);
 
@@ -630,8 +646,9 @@ static GtkWidget *about_create_child_page_release_notes(void)
 	text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD);
+	/* disable margins until GTK bug 793407 is fixed
 	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text), 6);
-	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6); */
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), text);
 
@@ -653,7 +670,7 @@ static GtkWidget *about_create_child_page_release_notes(void)
 
 		tmp = conv_codeset_strdup(buf, src_codeset, dest_codeset);
 		if (!tmp) {
-			g_warning("Failed to convert character set of action configuration");
+			g_warning("failed to convert character set of action configuration");
 			tmp = g_strdup(buf);
 		}
 
@@ -679,8 +696,9 @@ static GtkWidget *about_create_child_page_session_stats(void)
 	text = gtk_text_view_new();
 	gtk_text_view_set_editable(GTK_TEXT_VIEW(text), FALSE);
 	gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD);
+	/* disable margins until GTK bug 793407 is fixed
 	gtk_text_view_set_left_margin(GTK_TEXT_VIEW(text), 6);
-	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6);
+	gtk_text_view_set_right_margin(GTK_TEXT_VIEW(text), 6); */
 	gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(text), FALSE);
 	gtk_container_add(GTK_CONTAINER(scrolledwin), text);
 
@@ -773,18 +791,18 @@ static void about_update_stats(void)
 
 static void about_create(void)
 {
-	GtkWidget *vbox1;
-	GtkWidget *image;	
- 	GtkWidget *vbox2;
+	GtkWidget *grid1;
+	GtkWidget *grid2;
+	GtkWidget *image;
 	GtkWidget *label;
 	GtkWidget *button;
 	GtkWidget *scrolledwin;
 	GtkWidget *notebook;
-	GtkWidget *table;
 	char *markup;
 	GtkWidget *confirm_area;
 	GtkWidget *close_button;
 	static GdkGeometry geometry;
+	gint row = 0;
 
 	stats_text_buffer = NULL;
 
@@ -794,8 +812,6 @@ static void about_create(void)
 	gtk_window_set_type_hint(GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_DIALOG);
 	gtk_container_set_border_width(GTK_CONTAINER(window), 8);
 	gtk_widget_set_size_request(window, -1, -1);
-	g_signal_connect(G_OBJECT(window), "size_allocate",
-			 G_CALLBACK(about_size_allocate_cb), NULL);
 	g_signal_connect(G_OBJECT(window), "size_allocate",
 			 G_CALLBACK(about_size_allocate_cb), NULL);
 	g_signal_connect(G_OBJECT(window), "delete_event",
@@ -815,47 +831,51 @@ static void about_create(void)
 	
 	gtk_widget_realize(window);
 
-	vbox1 = gtk_vbox_new(FALSE, 8);
-	gtk_container_add(GTK_CONTAINER(window), vbox1);
+	grid1 = gtk_grid_new();
+	gtk_widget_set_halign(grid1, GTK_ALIGN_FILL);
+	gtk_orientable_set_orientation(GTK_ORIENTABLE(grid1),
+			GTK_ORIENTATION_VERTICAL);
+	gtk_grid_set_row_spacing(GTK_GRID(grid1), 8);
+	gtk_grid_set_column_spacing(GTK_GRID(grid1), 8);
+	gtk_container_add(GTK_CONTAINER(window), grid1);
 
-	table = gtk_table_new (2, 1, FALSE);
-	gtk_box_pack_start(GTK_BOX(vbox1), table,
-			FALSE, FALSE, 0);
-	gtk_container_set_border_width (GTK_CONTAINER (table), 8);
-	gtk_table_set_row_spacings (GTK_TABLE (table), 8);
-	gtk_table_set_col_spacings (GTK_TABLE (table), 8);
+	image = priv_pixmap_widget(PRIV_PIXMAP_CLAWS_MAIL_LOGO);
+	gtk_widget_set_halign(image, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign(image, GTK_ALIGN_CENTER);
+	gtk_grid_attach(GTK_GRID(grid1), image, 0, row, 1, 1);
 
-	image = stock_pixmap_widget(STOCK_PIXMAP_CLAWS_MAIL_LOGO);
-	gtk_table_attach (GTK_TABLE (table), image, 0, 1, 0, 1,
-			(GtkAttachOptions) (GTK_EXPAND),
-			(GtkAttachOptions) (0), 0, 0);
+	grid2 = gtk_grid_new();
+	gtk_orientable_set_orientation(GTK_ORIENTABLE(grid2),
+			GTK_ORIENTATION_VERTICAL);
+	gtk_widget_set_halign(grid2, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign(grid2, GTK_ALIGN_CENTER);
+	gtk_grid_set_row_spacing(GTK_GRID(grid2), 4);
 
-	vbox2 = gtk_vbox_new (FALSE, 4);
-	gtk_table_attach (GTK_TABLE (table), vbox2, 1, 2, 0, 1,
-			(GtkAttachOptions) (GTK_EXPAND),
-			(GtkAttachOptions) (0), 0, 0);
+	gtk_grid_attach(GTK_GRID(grid1), grid2, 1, row, 1, 1);
+	row++;
 
 	label = gtk_label_new("");
 	gtk_label_set_selectable(GTK_LABEL(label), TRUE);
 	gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
-	gtk_box_pack_start(GTK_BOX(vbox2), label, FALSE, FALSE, 0);
+	gtk_container_add(GTK_CONTAINER(grid2), label);
 	markup = g_markup_printf_escaped
 		("<span weight=\"bold\" size=\"xx-large\">Claws Mail</span>\nversion %s",
 		 VERSION);
 	gtk_label_set_markup(GTK_LABEL(label), markup);
 	g_free(markup);
 
-	button = gtkut_get_link_btn(window, HOMEPAGE_URI, " "HOMEPAGE_URI" ");
-	gtk_box_pack_start(GTK_BOX(vbox2), button, FALSE, FALSE, 0);
+	button = gtk_link_button_new(HOMEPAGE_URI);
+	gtk_container_add(GTK_CONTAINER(grid2), button);
 #ifndef GENERIC_UMPC
 	label = gtk_label_new
-		(_("Copyright (C) 1999-2021\nThe Claws Mail Team\n"
+		(_("Copyright (C) 1999-2022\nThe Claws Mail Team\n"
 		 "and Hiroyuki Yamamoto"));
 	gtk_label_set_selectable(GTK_LABEL(label), TRUE);
 	gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
 	gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-	gtk_box_pack_start(GTK_BOX(vbox2), label, FALSE, FALSE, 0);
+	gtk_container_add(GTK_CONTAINER(grid2), label);
 #endif
+
 	notebook = gtk_notebook_new();
 	gtk_widget_set_size_request(notebook, -1, 220);
 	gtk_widget_show(notebook);
@@ -898,11 +918,16 @@ static void about_create(void)
 				gtk_label_new_with_mnemonic(_("_Statistics")));
 	}
 
-	gtk_box_pack_start(GTK_BOX(vbox1), notebook, TRUE, TRUE, 0);
+	gtk_widget_set_hexpand(notebook, TRUE);
+	gtk_widget_set_vexpand(notebook, TRUE);
+	gtk_grid_attach(GTK_GRID(grid1), notebook, 0, row, 2, 1);
+	row++;
 
-	gtkut_stock_button_set_create(&confirm_area, &close_button, GTK_STOCK_CLOSE,
-				      NULL, NULL, NULL, NULL);
-	gtk_box_pack_end(GTK_BOX(vbox1), confirm_area, FALSE, FALSE, 4);
+	gtkut_stock_button_set_create(&confirm_area, &close_button, "window-close", _("_Close"),
+				      NULL, NULL, NULL, NULL, NULL, NULL);
+	gtk_grid_attach(GTK_GRID(grid1), confirm_area, 0, row, 2, 1);
+	row++;
+
 	gtk_widget_grab_default(close_button);
 	gtk_widget_grab_focus(close_button);
 	g_signal_connect_closure
@@ -925,8 +950,8 @@ static void about_size_allocate_cb(GtkWidget *widget,
 {
 	cm_return_if_fail(allocation != NULL);
 
-	prefs_common.aboutwin_width = allocation->width;
-	prefs_common.aboutwin_height = allocation->height;
+	gtk_window_get_size(GTK_WINDOW(widget),
+		&prefs_common.aboutwin_width, &prefs_common.aboutwin_height);
 }
 
 
@@ -979,9 +1004,7 @@ static gboolean about_textview_uri_clicked(GtkTextTag *tag, GObject *obj,
 			g_object_set_data(
 					G_OBJECT(link_popupmenu),
 					"raw_url", link);
-			gtk_menu_popup(GTK_MENU(link_popupmenu), 
-					NULL, NULL, NULL, NULL, 
-					bevent->button, bevent->time);
+			gtk_menu_popup_at_pointer(GTK_MENU(link_popupmenu), NULL);
 
 			return TRUE;
 		}
@@ -994,8 +1017,6 @@ static gboolean about_textview_motion_notify(GtkWidget *widget,
 					GtkWidget *textview)
 {
 	about_textview_uri_update(textview, event->x, event->y);
-	gdk_window_get_pointer(gtk_widget_get_window(widget), NULL, NULL, NULL);
-
 	return FALSE;
 }
 
@@ -1078,9 +1099,11 @@ static void about_textview_uri_update(GtkWidget *textview, gint x, gint y)
 		window = gtk_text_view_get_window(GTK_TEXT_VIEW(textview),
 						GTK_TEXT_WINDOW_TEXT);
 		if (!hand_cursor)
-			hand_cursor = gdk_cursor_new(GDK_HAND2);
+			hand_cursor = gdk_cursor_new_for_display(
+					gdk_window_get_display(window), GDK_HAND2);
 		if (!text_cursor)
-			text_cursor = gdk_cursor_new(GDK_XTERM);
+			text_cursor = gdk_cursor_new_for_display(
+					gdk_window_get_display(window), GDK_XTERM);
 		gdk_window_set_cursor(window, uri ? hand_cursor : text_cursor);
 	}
 }

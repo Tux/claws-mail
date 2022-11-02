@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2018 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "defs.h"
 
 #include <glib.h>
@@ -628,8 +629,6 @@ void procmsg_get_filter_keyword(MsgInfo *msginfo, gchar **header, gchar **key,
 			*key = g_strdup(msginfo->subject);
 		}
 
-#undef SET_FILTER_KEY
-
 		g_free(hentry[H_X_BEENTHERE].body);
 		hentry[H_X_BEENTHERE].body = NULL;
 		g_free(hentry[H_X_ML_NAME].body);
@@ -657,6 +656,30 @@ void procmsg_get_filter_keyword(MsgInfo *msginfo, gchar **header, gchar **key,
 	case FILTER_BY_SUBJECT:
 		*header = g_strdup("subject");
 		*key = g_strdup(msginfo->subject);
+		break;
+	case FILTER_BY_SENDER:
+		if ((fp = procmsg_open_message(msginfo, FALSE)) == NULL)
+			return;
+		procheader_get_header_fields(fp, hentry);
+		fclose(fp);
+
+		if (hentry[H_SENDER].body != NULL)
+			SET_FILTER_KEY("header \"Sender\"", H_SENDER);
+
+		g_free(hentry[H_X_BEENTHERE].body);
+		hentry[H_X_BEENTHERE].body = NULL;
+		g_free(hentry[H_X_ML_NAME].body);
+		hentry[H_X_ML_NAME].body = NULL;
+		g_free(hentry[H_X_LIST].body);
+		hentry[H_X_LIST].body = NULL;
+		g_free(hentry[H_X_MAILING_LIST].body);
+		hentry[H_X_MAILING_LIST].body = NULL;
+		g_free(hentry[H_LIST_ID].body);
+		hentry[H_LIST_ID].body = NULL;
+		g_free(hentry[H_SENDER].body);
+		hentry[H_SENDER].body = NULL;		
+
+#undef SET_FILTER_KEY
 		break;
 	default:
 		break;
@@ -759,6 +782,8 @@ static PrefsAccount *procmsg_get_account_from_file(const gchar *file)
 		g_free(buf);
 		buf = NULL;
 	}
+	if (buf)
+		g_free(buf);
 	claws_fclose(fp);
 	return mailac;
 }
@@ -999,7 +1024,7 @@ gint procmsg_send_queue(FolderItem *queue, gboolean save_msgs, gchar **errstr)
 				if (procmsg_send_message_queue_full(file, 
 						!procmsg_is_last_for_account(queue, msginfo, elem),
 						errstr, queue, msginfo->msgnum, &queued_removed) < 0) {
-					g_warning("Sending queued message %d failed.",
+					g_warning("sending queued message %d failed",
 						  msginfo->msgnum);
 					err++;
 				} else {
@@ -1267,8 +1292,8 @@ MsgInfo *procmsg_msginfo_copy(MsgInfo *msginfo)
 	if (msginfo->extradata) {
 		newmsginfo->extradata = g_new0(MsgInfoExtraData, 1);
 		if (msginfo->extradata->avatars) {
-			newmsginfo->extradata->avatars = slist_copy_deep(msginfo->extradata->avatars,
-								(GCopyFunc) procmsg_msginfoavatar_copy);
+			newmsginfo->extradata->avatars = g_slist_copy_deep(msginfo->extradata->avatars,
+								(GCopyFunc) procmsg_msginfoavatar_copy, NULL);
 		}
 		MEMBDUP(extradata->dispositionnotificationto);
 		MEMBDUP(extradata->returnreceiptto);
@@ -1304,7 +1329,7 @@ MsgInfo *procmsg_msginfo_get_full_info_from_file(MsgInfo *msginfo, const gchar *
 	if (msginfo == NULL) return NULL;
 
 	if (!file || !is_file_exist(file)) {
-		g_warning("procmsg_msginfo_get_full_info_from_file(): can't get message file.");
+		g_warning("procmsg_msginfo_get_full_info_from_file(): can't get message file");
 		return NULL;
 	}
 
@@ -1330,8 +1355,8 @@ MsgInfo *procmsg_msginfo_get_full_info_from_file(MsgInfo *msginfo, const gchar *
 		if (!msginfo->extradata->list_owner)
 			msginfo->extradata->list_owner = g_strdup(full_msginfo->extradata->list_owner);
 		if (!msginfo->extradata->avatars)
-			msginfo->extradata->avatars = slist_copy_deep(full_msginfo->extradata->avatars,
-									(GCopyFunc) procmsg_msginfoavatar_copy);
+			msginfo->extradata->avatars = g_slist_copy_deep(full_msginfo->extradata->avatars,
+									(GCopyFunc) procmsg_msginfoavatar_copy, NULL);
 		if (!msginfo->extradata->dispositionnotificationto)
 			msginfo->extradata->dispositionnotificationto = 
 				g_strdup(full_msginfo->extradata->dispositionnotificationto);
@@ -1369,7 +1394,7 @@ MsgInfo *procmsg_msginfo_get_full_info(MsgInfo *msginfo)
 		file = procmsg_get_message_file(msginfo);
 	}
 	if (!file || !is_file_exist(file)) {
-		g_warning("procmsg_msginfo_get_full_info(): can't get message file.");
+		g_warning("procmsg_msginfo_get_full_info(): can't get message file");
 		return NULL;
 	}
 
@@ -1641,8 +1666,8 @@ send_mail:
 			if (!mailac) {
 				mailac = account_find_from_smtp_server(from, smtpserver);
 				if (!mailac) {
-					g_warning("Account not found. "
-						    "Using current account...");
+					g_warning("account not found, "
+						    "using current account...");
 					mailac = cur_account;
 				}
 			}
@@ -1656,7 +1681,7 @@ send_mail:
 			} else {
 				PrefsAccount tmp_ac;
 
-				g_warning("Account not found.");
+				g_warning("account not found");
 
 				memset(&tmp_ac, 0, sizeof(PrefsAccount));
 				tmp_ac.address = from;
@@ -2369,7 +2394,7 @@ MsgInfo *procmsg_msginfo_new_from_mimeinfo(MsgInfo *src_msginfo, MimeInfo *mimei
 			tmp_msginfo->folder = src_msginfo->folder;
 		tmp_msginfo->plaintext_file = g_strdup(tmpfile);
 	} else {
-		g_warning("procmsg_msginfo_new_from_mimeinfo(): Can't generate new msginfo");
+		g_warning("procmsg_msginfo_new_from_mimeinfo(): can't generate new msginfo");
 	}
 
 	g_free(tmpfile);

@@ -17,7 +17,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#define __USE_GNU
+#include "config.h"
 
 #include <stdlib.h>
 #include <glib.h>
@@ -36,7 +36,7 @@ FeedItem *feed_item_new(Feed *feed)
 {
 	FeedItem *item = NULL;
 
-	item = malloc( sizeof(FeedItem) );
+	item = g_malloc( sizeof(FeedItem) );
 	item->url = NULL;
 	item->title = NULL;
 	item->title_format = 0;

@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 2006-2015 Ricardo Mones and the Claws Mail Team
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 2006-2022  Ricardo Mones and the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ static AttachWarnerMention *aw_matcherlist_string_match(MatcherList *matchers, g
 		}
 	}
 	if (ret != FALSE) {
-                awm = g_new0(AttachWarnerMention, 1);
+		awm = g_new0(AttachWarnerMention, 1);
 		awm->line = i; /* usual humans count lines from 1 */
 		awm->context = g_strdup(lines[i - 1]);
 		debug_print("found at line %d, context \"%s\"\n", awm->line, awm->context);
@@ -109,27 +109,27 @@ AttachWarnerMention *are_attachments_mentioned(Compose *compose)
 	AttachWarnerMention *mention = NULL;
 	MatcherList *matchers = NULL;
 
-	matchers = matcherlist_new_from_lines(attwarnerprefs.match_strings, FALSE, attwarnerprefs.case_sensitive);
+	if (attwarnerprefs.match_strings != NULL
+			&& attwarnerprefs.match_strings[0] != '\0') {
+		matchers = matcherlist_new_from_lines(attwarnerprefs.match_strings, FALSE, attwarnerprefs.case_sensitive);
 
-	if (matchers == NULL) {
-		g_warning("couldn't allocate matcher");
-		return FALSE;
+		if (matchers) {
+			textview = GTK_TEXT_VIEW(compose->text);
+		        textbuffer = gtk_text_view_get_buffer(textview);
+			gtk_text_buffer_get_start_iter(textbuffer, &start);
+			gtk_text_buffer_get_end_iter(textbuffer, &end);
+			text = gtk_text_buffer_get_text(textbuffer, &start, &end, FALSE);
+
+			debug_print("checking text for attachment mentions\n");
+			if (text != NULL) {
+				mention = aw_matcherlist_string_match(matchers, text, compose->account->sig_sep);
+				g_free(text);
+			}	
+			matcherlist_free(matchers);
+			debug_print("done\n");
+		} else
+			g_warning("couldn't allocate matcher");
 	}
-
-	textview = GTK_TEXT_VIEW(compose->text);
-        textbuffer = gtk_text_view_get_buffer(textview);
-	gtk_text_buffer_get_start_iter(textbuffer, &start);
-	gtk_text_buffer_get_end_iter(textbuffer, &end);
-	text = gtk_text_buffer_get_text(textbuffer, &start, &end, FALSE);
-
-	debug_print("checking text for attachment mentions\n");
-	if (text != NULL) {
-		mention = aw_matcherlist_string_match(matchers, text, compose->account->sig_sep);
-		g_free(text);
-	}	
-	if (matchers != NULL)
-		matcherlist_free(matchers);
-	debug_print("done\n");
 	return mention;
 }
 
@@ -143,14 +143,14 @@ AttachWarnerMention *are_attachments_mentioned(Compose *compose)
 gboolean does_not_have_attachments(Compose *compose)
 {
 	GtkTreeView *tree_view = GTK_TREE_VIEW(compose->attach_clist);
-        GtkTreeModel *model;
-        GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
 
-        model = gtk_tree_view_get_model(tree_view);
+	model = gtk_tree_view_get_model(tree_view);
 
 	debug_print("checking for attachments existence\n");
-        if (!gtk_tree_model_get_iter_first(model, &iter))
-                return TRUE;
+	if (!gtk_tree_model_get_iter_first(model, &iter))
+		return TRUE;
 
 	return FALSE;
 }
@@ -190,8 +190,9 @@ static gboolean attwarn_before_send_hook(gpointer source, gpointer data)
 {
 	Compose *compose = (Compose *)source;
 	AttachWarnerMention *mention = NULL;
+	gboolean ret = FALSE; /* continue sending if FALSE */
 
-	debug_print("attachwarner invoked\n");
+	debug_print("AttachWarner invoked\n");
 	if (compose->batch)
 		return FALSE;	/* do not check while queuing */
 
@@ -214,14 +215,13 @@ static gboolean attwarn_before_send_hook(gpointer source, gpointer data)
 				bold_text,
 				compose->sending?_("Send it anyway?"):_("Queue it anyway?"));
 		aval = alertpanel(_("Attachment warning"), message,
-				  GTK_STOCK_CANCEL,
-					compose->sending ? _("_Send") : _("Queue"),
-					NULL,
-					ALERTFOCUS_SECOND);
+				  NULL, _("_Cancel"),
+				  NULL, compose->sending ? _("_Send") : _("Queue"),
+				  NULL, NULL, ALERTFOCUS_SECOND);
 		g_free(message);
 		g_free(bold_text);
 		if (aval != G_ALERTALTERNATE)
-			return TRUE;
+			ret = TRUE;	
 	}
 	if (mention != NULL) {
 		if (mention->context != NULL)
@@ -229,7 +229,7 @@ static gboolean attwarn_before_send_hook(gpointer source, gpointer data)
 		g_free(mention);
 	}
 
-	return FALSE;	/* continue sending */
+	return ret;
 }
 
 /**
@@ -242,12 +242,12 @@ static gboolean attwarn_before_send_hook(gpointer source, gpointer data)
 gint plugin_init(gchar **error)
 {
 	if (!check_plugin_version(MAKE_NUMERIC_VERSION(2,9,2,72),
-				  VERSION_NUMERIC, _("Attach warner"), error))
+			VERSION_NUMERIC, "AttachWarner", error))
 		return -1;
 
-	hook_id = hooks_register_hook(COMPOSE_CHECK_BEFORE_SEND_HOOKLIST, 
-				      attwarn_before_send_hook, NULL);
-	
+	hook_id = hooks_register_hook(COMPOSE_CHECK_BEFORE_SEND_HOOKLIST,
+			attwarn_before_send_hook, NULL);
+
 	if (hook_id == HOOK_NONE) {
 		*error = g_strdup(_("Failed to register check before send hook"));
 		return -1;
@@ -255,7 +255,7 @@ gint plugin_init(gchar **error)
 
 	attachwarner_prefs_init();
 
-	debug_print("Attachment warner plugin loaded\n");
+	debug_print("AttachWarner plugin loaded\n");
 
 	return 0;
 }
@@ -268,7 +268,7 @@ gboolean plugin_done(void)
 {	
 	hooks_unregister_hook(COMPOSE_CHECK_BEFORE_SEND_HOOKLIST, hook_id);
 	attachwarner_prefs_done();
-	debug_print("Attachment warner plugin unloaded\n");
+	debug_print("AttachWarner plugin unloaded\n");
 	return TRUE;
 }
 
@@ -279,7 +279,7 @@ gboolean plugin_done(void)
  */
 const gchar *plugin_name(void)
 {
-	return _("Attach warner");
+	return _("AttachWarner");
 }
 
 /**
@@ -296,11 +296,11 @@ const gchar *plugin_desc(void)
 /**
  * Get the kind of plugin.
  *
- * @return The "GTK2" constant.
+ * @return The "GTK3" constant.
  */
 const gchar *plugin_type(void)
 {
-	return "GTK2";
+	return "GTK3";
 }
 
 /**
@@ -331,7 +331,7 @@ const gchar *plugin_version(void)
 struct PluginFeature *plugin_provides(void)
 {
 	static struct PluginFeature features[] = 
-		{ {PLUGIN_OTHER, N_("Attach warner")},
+		{ {PLUGIN_OTHER, N_("AttachWarner")},
 		  {PLUGIN_NOTHING, NULL}};
 
 	return features;

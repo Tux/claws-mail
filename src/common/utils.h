@@ -1,6 +1,6 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
- * Copyright (C) 1999-2020 The Claws Mail Team and Hiroyuki Yamamoto
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2022 The Claws Mail Team and Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 
 #ifdef HAVE_CONFIG_H
 #include "claws-features.h"
-#include "config.h"
 #endif
 
 #ifdef HAVE_BACKTRACE
@@ -96,9 +95,17 @@ typedef gint64 goffset;
 	} \
 }
 
+#define MAX_ALLOCA_MEM_SIZE 102400
+
 #define Xalloca(ptr, size, iffail) \
 { \
-	if ((ptr = alloca(size)) == NULL) { \
+	size_t __size = size; \
+ \
+	if (__size > MAX_ALLOCA_MEM_SIZE) { \
+		g_warning("%" G_GSIZE_FORMAT " bytes exceeds max alloca size '%d'", __size, MAX_ALLOCA_MEM_SIZE); \
+		iffail; \
+	} \
+	if ((ptr = alloca(__size)) == NULL) { \
 		g_warning("can't allocate memory"); \
 		iffail; \
 	} \
@@ -107,8 +114,13 @@ typedef gint64 goffset;
 #define Xstrdup_a(ptr, str, iffail) \
 { \
 	gchar *__tmp; \
+	size_t __size = strlen(str); \
  \
-	if ((__tmp = alloca(strlen(str) + 1)) == NULL) { \
+	if (__size > MAX_ALLOCA_MEM_SIZE) { \
+		g_warning("%" G_GSIZE_FORMAT " bytes exceeds max alloca size '%d'", __size, MAX_ALLOCA_MEM_SIZE); \
+		iffail; \
+	} \
+	if ((__tmp = alloca(__size + 1)) == NULL) { \
 		g_warning("can't allocate memory"); \
 		iffail; \
 	} else \
@@ -120,13 +132,18 @@ typedef gint64 goffset;
 #define Xstrndup_a(ptr, str, len, iffail) \
 { \
 	gchar *__tmp; \
+	size_t __size = len; \
  \
-	if ((__tmp = alloca(len + 1)) == NULL) { \
+	if (__size > MAX_ALLOCA_MEM_SIZE) { \
+		g_warning("%" G_GSIZE_FORMAT "bytes exceeds max alloca size '%d'", __size, MAX_ALLOCA_MEM_SIZE); \
+		iffail; \
+	} \
+	if ((__tmp = alloca(__size + 1)) == NULL) { \
 		g_warning("can't allocate memory"); \
 		iffail; \
 	} else { \
-		memcpy(__tmp, str, len); \
-		__tmp[len] = '\0'; \
+		memcpy(__tmp, str, __size); \
+		__tmp[__size] = '\0'; \
 	} \
  \
 	ptr = __tmp; \
@@ -135,10 +152,14 @@ typedef gint64 goffset;
 #define Xstrcat_a(ptr, str1, str2, iffail) \
 { \
 	gchar *__tmp; \
-	gint len1, len2; \
+	size_t len1, len2; \
  \
 	len1 = strlen(str1); \
 	len2 = strlen(str2); \
+	if (len1 + len2 > MAX_ALLOCA_MEM_SIZE) { \
+		g_warning("%" G_GSIZE_FORMAT " bytes exceeds max alloca size '%d'", len1 + len2, MAX_ALLOCA_MEM_SIZE); \
+		iffail; \
+	} \
 	if ((__tmp = alloca(len1 + len2 + 1)) == NULL) { \
 		g_warning("can't allocate memory"); \
 		iffail; \
@@ -236,25 +257,17 @@ typedef gpointer (*GNodeMapFunc)	(gpointer nodedata, gpointer data);
 void debug_set_mode		(gboolean mode);
 gboolean debug_get_mode		(void);
 
-#ifndef __CYGWIN__
+#ifdef HAVE_VA_OPT
+#define debug_print(format, ...) debug_print_real(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+#else
 #define debug_print \
 	debug_print_real("%s:%d:", debug_srcname(__FILE__), __LINE__), \
-	debug_print_real
-#else
-  /* FIXME: cygwin: why debug_srcname couldn't be resolved in library? */
-#define debug_print \
-	debug_print_real("%s:%d:", __FILE__, __LINE__), \
 	debug_print_real
 #endif
 
 /* for macro expansion */
 #define Str(x)	#x
 #define Xstr(x)	Str(x)
-
-/* List utilities. */
-
-GSList *slist_copy_deep		(GSList		*list,
-				 GCopyFunc	 func);
 
 /* String utilities.  */
 
@@ -281,6 +294,7 @@ gchar *strretchomp	(gchar		*str);
 gchar *strtailchomp	(gchar		*str,
 			 gchar		 tail_char);
 gchar *strcrchomp	(gchar		*str);
+gchar *strcrlftrunc	(gchar *str);
 #ifndef HAVE_STRCASESTR
 gchar *strcasestr	(const gchar	*haystack,
 			 const gchar	*needle);
@@ -464,7 +478,11 @@ size_t fast_strftime		(gchar 			*buf,
 				 struct tm 		*lt);
 
 /* debugging */
-void debug_print_real	(const gchar *format, ...) G_GNUC_PRINTF(1, 2);
+#ifdef HAVE_VA_OPT
+void debug_print_real (const char *file, int line, const gchar *format, ...) G_GNUC_PRINTF(3, 4);
+#else
+void debug_print_real (const gchar *format, ...) G_GNUC_PRINTF(1, 2);
+#endif
 const char * debug_srcname (const char *file);
 
 /* subject threading */
@@ -501,7 +519,6 @@ GAuto *g_auto_pointer_new_with_free	(gpointer p,
 gpointer g_auto_pointer_get_ptr		(GAuto *auto_ptr);
 GAuto *g_auto_pointer_copy		(GAuto *auto_ptr);
 void g_auto_pointer_free		(GAuto *auto_ptr);
-void replace_returns			(gchar *str);
 gboolean get_uri_part	(const gchar *start,
 		    	 const gchar *scanpos,
 		     	 const gchar **bp,
@@ -528,18 +545,9 @@ gboolean file_is_email(const gchar *filename);
 gboolean sc_g_list_bigger(GList *list, gint max);
 gboolean sc_g_slist_bigger(GSList *list, gint max);
 
-GMutex *cm_mutex_new(void);
-void cm_mutex_free(GMutex *mutex);
-
 int cm_canonicalize_filename(const gchar *filename, gchar **canonical_name);
 
 guchar *g_base64_decode_zero(const gchar *text, gsize *out_len);
-
-#if !GLIB_CHECK_VERSION(2, 30, 0)
-gchar   *g_utf8_substring         (const gchar *p,
-                                   glong        start_pos,
-                                   glong        end_pos) G_GNUC_MALLOC;
-#endif
 
 gboolean get_random_bytes(void *buf, size_t count);
 

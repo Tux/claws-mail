@@ -1,5 +1,5 @@
 /*
- * Claws Mail -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2018 Colin Leroy and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -133,7 +133,7 @@ int claws_unlink(const char *filename)
 					debug_print("%s %s exited with status %d\n",
 						args[0], filename, WEXITSTATUS(status));
 					if (truncate(filename, 0) < 0)
-						g_warning("couln't truncate: %s", filename);
+						g_warning("couldn't truncate: %s", filename);
 				}
 			}
 		}
@@ -217,7 +217,7 @@ gint append_file(const gchar *src, const gchar *dest, gboolean keep_backup)
 		if (n_read < sizeof(buf) && claws_ferror(src_fp))
 			break;
 		if (claws_fwrite(buf, 1, n_read, dest_fp) < n_read) {
-			g_warning("writing to %s failed.", dest);
+			g_warning("writing to %s failed", dest);
 			claws_fclose(dest_fp);
 			claws_fclose(src_fp);
 			claws_unlink(dest);
@@ -285,10 +285,11 @@ gint copy_file(const gchar *src, const gchar *dest, gboolean keep_backup)
 		if (n_read < sizeof(buf) && claws_ferror(src_fp))
 			break;
 		if (claws_fwrite(buf, 1, n_read, dest_fp) < n_read) {
-			g_warning("writing to %s failed.", dest);
+			g_warning("writing to %s failed", dest);
 			claws_fclose(dest_fp);
 			claws_fclose(src_fp);
-			claws_unlink(dest);
+			if (claws_unlink(dest) < 0)
+                                FILE_OP_ERROR(dest, "claws_unlink");
 			if (dest_bak) {
 				if (rename_force(dest_bak, dest) < 0)
 					FILE_OP_ERROR(dest_bak, "rename");
@@ -309,7 +310,8 @@ gint copy_file(const gchar *src, const gchar *dest, gboolean keep_backup)
 	}
 
 	if (err) {
-		claws_unlink(dest);
+		if (claws_unlink(dest) < 0)
+                        FILE_OP_ERROR(dest, "claws_unlink");
 		if (dest_bak) {
 			if (rename_force(dest_bak, dest) < 0)
 				FILE_OP_ERROR(dest_bak, "rename");
@@ -319,7 +321,8 @@ gint copy_file(const gchar *src, const gchar *dest, gboolean keep_backup)
 	}
 
 	if (keep_backup == FALSE && dest_bak)
-		claws_unlink(dest_bak);
+		if (claws_unlink(dest_bak) < 0)
+                        FILE_OP_ERROR(dest_bak, "claws_unlink");
 
 	g_free(dest_bak);
 
@@ -329,7 +332,7 @@ gint copy_file(const gchar *src, const gchar *dest, gboolean keep_backup)
 gint move_file(const gchar *src, const gchar *dest, gboolean overwrite)
 {
 	if (overwrite == FALSE && is_file_exist(dest)) {
-		g_warning("move_file(): file %s already exists.", dest);
+		g_warning("move_file(): file %s already exists", dest);
 		return -1;
 	}
 
@@ -405,7 +408,7 @@ gint copy_file_part(FILE *fp, off_t offset, size_t length, const gchar *dest)
 	}
 
 	if (err) {
-		g_warning("writing to %s failed.", dest);
+		g_warning("writing to %s failed", dest);
 		claws_unlink(dest);
 		return -1;
 	}
@@ -463,7 +466,7 @@ gint canonicalize_file(const gchar *src, const gchar *dest)
 		}
 
 		if (r == EOF) {
-			g_warning("writing to %s failed.", dest);
+			g_warning("writing to %s failed", dest);
 			claws_fclose(dest_fp);
 			claws_fclose(src_fp);
 			claws_unlink(dest);
@@ -724,44 +727,45 @@ gint copy_dir(const gchar *src, const gchar *dst)
 		return -1;
 	}
 
-	if (make_dir(dst) < 0)
+	if (make_dir(dst) < 0) {
+		g_dir_close(dir);
 		return -1;
+	}
 
 	while ((name = g_dir_read_name(dir)) != NULL) {
 		gchar *old_file, *new_file;
+		gint r = 0;
 		old_file = g_strconcat(src, G_DIR_SEPARATOR_S, name, NULL);
 		new_file = g_strconcat(dst, G_DIR_SEPARATOR_S, name, NULL);
 		debug_print("copying: %s -> %s\n", old_file, new_file);
 		if (g_file_test(old_file, G_FILE_TEST_IS_REGULAR)) {
-			gint r = copy_file(old_file, new_file, TRUE);
-			if (r < 0) {
-				g_dir_close(dir);
-				return r;
-			}
-                }
+			r = copy_file(old_file, new_file, TRUE);
+		}
 #ifndef G_OS_WIN32
-                /* Windows has no symlinks.  Or well, Vista seems to
-                   have something like this but the semantics might be
-                   different.  Thus we don't use it under Windows. */
-		 else if (g_file_test(old_file, G_FILE_TEST_IS_SYMLINK)) {
+		/* Windows has no symlinks.  Or well, Vista seems to
+		   have something like this but the semantics might be
+		   different. Thus we don't use it under Windows. */
+		else if (g_file_test(old_file, G_FILE_TEST_IS_SYMLINK)) {
 			GError *error = NULL;
-			gint r = 0;
 			gchar *target = g_file_read_link(old_file, &error);
-			if (target)
+			if (error) {
+				g_warning("couldn't read link: %s", error->message);
+				g_error_free(error);
+			}
+			if (target) {
 				r = symlink(target, new_file);
-			g_free(target);
-			if (r < 0) {
-				g_dir_close(dir);
-				return r;
+				g_free(target);
 			}
-                 }
+		}
 #endif /*G_OS_WIN32*/
-	        else if (g_file_test(old_file, G_FILE_TEST_IS_DIR)) {
-			gint r = copy_dir(old_file, new_file);
-			if (r < 0) {
-				g_dir_close(dir);
-				return r;
-			}
+		else if (g_file_test(old_file, G_FILE_TEST_IS_DIR)) {
+			r = copy_dir(old_file, new_file);
+		}
+		g_free(old_file);
+		g_free(new_file);
+		if (r < 0) {
+			g_dir_close(dir);
+			return r;
 		}
 	}
 	g_dir_close(dir);
@@ -848,10 +852,7 @@ FILE *str_open_as_stream(const gchar *str)
 
 	cm_return_val_if_fail(str != NULL, NULL);
 
-	len = strlen(str);
-
 	fp = my_tmpfile();
-
 	if (!fp) {
 		FILE_OP_ERROR("str_open_as_stream", "my_tmpfile");
 		return NULL;

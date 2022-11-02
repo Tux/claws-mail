@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto and the Claws Mail team
  *
  * This program is free software; you can redistribute it and/or modify
@@ -60,8 +60,8 @@ struct _FolderView
 
 	gboolean open_folder;
 
-	GdkColor color_new;
-	GdkColor color_op;
+	GdkRGBA color_new;
+	GdkRGBA color_op;
 
 	MainWindow   *mainwin;
 	SummaryView  *summaryview;
@@ -127,12 +127,14 @@ void folderview_check_new_all		(void);
 
 void folderview_update_all_updated	(gboolean	 update_summary);
 
+void folderview_run_processing(FolderItem *item);
+
 void folderview_move_folder		(FolderView 	*folderview,
 					 FolderItem 	*from_folder,
 					 FolderItem 	*to_folder,
 					 gboolean	 copy);
 
-void folderview_set_target_folder_color (gint		color_op);
+void folderview_set_target_folder_color (GdkRGBA		color_op);
 
 void folderview_reinit_fonts		(FolderView *folderview);
 

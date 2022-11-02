@@ -1,5 +1,5 @@
 /*
- * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Claws Mail -- a GTK based, lightweight, and fast e-mail client
  * Copyright (C) 1999-2012 Hiroyuki Yamamoto
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,8 @@ typedef enum
 	FILTER_BY_AUTO,
 	FILTER_BY_FROM,
 	FILTER_BY_TO,
-	FILTER_BY_SUBJECT
+	FILTER_BY_SUBJECT,
+	FILTER_BY_SENDER
 } PrefsFilterType;
 
 #include "folder.h"
