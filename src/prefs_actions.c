@@ -998,6 +998,7 @@ static gchar *actions_desc_strings[] = {
 	"     |",   N_("to replace message body or selection with command's standard output"),
 	"     &gt;",   N_("to insert command's standard output without replacing old text"),
 	"     &amp;",   N_("to run command asynchronously"),
+	"     ^",   N_("auto-close I/O dialog when action is finished"),
 	N_("<span weight=\"bold\">Use:</span>"), NULL, 
 	"     %f",  N_("for the file of the selected message in RFC822/2822 format "),
 	"     %F",  N_("for the list of the files of the selected messages in RFC822/2822 format"),
