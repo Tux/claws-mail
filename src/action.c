@@ -272,6 +272,9 @@ ActionType action_get_type(const gchar *action_str)
 			} else if (p[0] == '&') {
 				if (p[1] == '\0')
 					action_type |= ACTION_ASYNC;
+			} else if (p[0] == '^') {
+				if (p[1] == '\0')
+					action_type |= ACTION_AUTOCLOSE_DIALOG;
 			} else if (p[0] == '}') {
 				in_filtering_action = FALSE;
 			}
@@ -300,7 +303,7 @@ static gchar *parse_action_cmd(gchar *action, MsgInfo *msginfo,
 	cmd = g_string_sized_new(strlen(action));
 
 	while (p[0] &&
-	       !((p[0] == '|' || p[0] == '>' || p[0] == '&') && !p[1])) {
+	       !((p[0] == '|' || p[0] == '>' || p[0] == '&' || p[0] == '^') && !p[1])) {
 		if (p[0] == '%' && p[1]) {
 			switch (p[1]) {
 			case 'f':
@@ -688,7 +691,9 @@ static void message_actions_execute(MessageView *msgview, guint action_nb,
 
 	/* this command will alter the message text */
 	action_type = action_get_type(action);
-	if (action_type & (ACTION_PIPE_OUT | ACTION_INSERT))
+	if (action_type & (ACTION_PIPE_OUT | ACTION_INSERT |
+			/* this command might alter the message text */
+			   ACTION_AUTOCLOSE_DIALOG))
 		msgview->filtered = TRUE;
 
 	if (action_type & ACTION_FILTERING_ACTION) 
@@ -1106,7 +1111,9 @@ static gint wait_for_children(Children *children)
 	if (children->nb)
 		return FALSE;
 
-	if (!children->dialog) {
+	if (children->action_type & ACTION_AUTOCLOSE_DIALOG) {
+		gtk_widget_destroy(children->dialog);
+	} else if (!children->dialog) {
 		free_children(children);
 	} else if (!children->output) {
 		gtk_widget_destroy(children->dialog);
