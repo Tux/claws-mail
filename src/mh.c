@@ -1301,10 +1301,11 @@ static gboolean mh_rename_folder_func(GNode *node, gpointer data)
 
 static gchar *mh_filename_from_utf8(const gchar *path)
 {
-	gchar *real_path = g_filename_from_utf8(path, -1, NULL, NULL, NULL);
+	GError *error = NULL;
+	gchar *real_path = g_filename_from_utf8(path, -1, NULL, NULL, &error);
 
 	if (!real_path) {
-		g_warning("mh_filename_from_utf8: failed to convert character set");
+		g_warning("mh_filename_from_utf8: failed to convert character set: %s (%d) '%s'", error->message, error->code, path);
 		real_path = g_strdup(path);
 	}
 
@@ -1313,9 +1314,10 @@ static gchar *mh_filename_from_utf8(const gchar *path)
 
 static gchar *mh_filename_to_utf8(const gchar *path)
 {
-	gchar *utf8path = g_filename_to_utf8(path, -1, NULL, NULL, NULL);
+	GError *error = NULL;
+	gchar *utf8path = g_filename_to_utf8(path, -1, NULL, NULL, &error);
 	if (!utf8path) {
-		g_warning("mh_filename_to_utf8: failed to convert character set");
+		g_warning("mh_filename_to_utf8: failed to convert character set: %s (%d) '%s'", error->message, error->code, path);
 		utf8path = g_strdup(path);
 	}
 
