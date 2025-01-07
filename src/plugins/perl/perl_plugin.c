@@ -1797,10 +1797,10 @@ static int perl_init (void) {
 
   /* Make this dynamic! */
   eval_pv ("use lib '/pro/3gl/sc/cm-git/src/plugins/perl/lib'", TRUE);
-  eval_pv ("use ClawsMail::Utils",          TRUE);
-  eval_pv ("use ClawsMail::Persistent",     TRUE);
-  eval_pv ("use ClawsMail::Filer::Matcher", TRUE);
-  eval_pv ("use ClawsMail::Filer::Action",  TRUE);
+  eval_pv ("use ClawsMail::Utils",           TRUE);
+  eval_pv ("use ClawsMail::Persistent",      TRUE);
+  eval_pv ("use ClawsMail::Filter::Matcher", TRUE);
+  eval_pv ("use ClawsMail::Filter::Action",  TRUE);
   return exitstatus;
 }
 
